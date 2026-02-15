@@ -1,0 +1,16 @@
+# Data directories (pipeline outputs)
+scopus_out*/
+openalex_cache/
+
+# Secrets
+config.json
+
+# Claude Code memory
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store

@@ -1,0 +1,224 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://silicon-lifecycle.org/ontology#"
+     xml:base="http://silicon-lifecycle.org/ontology"
+     xmlns:owl="http://www.w3.org/2002/07/owl#"
+     xmlns:rdf="http://www.w3.org/1999/02/22/rdf-syntax-ns#"
+     xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#"
+     xmlns:xsd="http://www.w3.org/2001/XMLSchema#">
+    <owl:Ontology rdf:about="http://silicon-lifecycle.org/ontology">
+        <rdfs:label>Silicon Lifecycle Ontology for SLR Classification</rdfs:label>
+        <owl:versionInfo>0.3.0</owl:versionInfo>
+    </owl:Ontology>
+    <owl:ObjectProperty rdf:about="http://silicon-lifecycle.org/ontology#methodAppliedToTask">
+        <rdfs:domain rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:range rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+    </owl:ObjectProperty>
+    <owl:ObjectProperty rdf:about="http://silicon-lifecycle.org/ontology#artifactOptimizedForWorkload">
+        <rdfs:domain rdf:resource="http://silicon-lifecycle.org/ontology#HardwareArtifact" />
+        <rdfs:range rdf:resource="http://silicon-lifecycle.org/ontology#AIWorkload" />
+    </owl:ObjectProperty>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#AIMethod">
+        <rdfs:label>AIMethod</rdfs:label>
+        <rdfs:comment>AI/ML technique used as a tool</rdfs:comment>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#ChipDesignTask">
+        <rdfs:label>ChipDesignTask</rdfs:label>
+        <rdfs:comment>Engineering task in the silicon lifecycle</rdfs:comment>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#HardwareArtifact">
+        <rdfs:label>HardwareArtifact</rdfs:label>
+        <rdfs:comment>Chip architecture or component (product)</rdfs:comment>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#AIWorkload">
+        <rdfs:label>AIWorkload</rdfs:label>
+        <rdfs:comment>Computational task a chip is designed to run</rdfs:comment>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#LifecyclePhase">
+        <rdfs:label>LifecyclePhase</rdfs:label>
+        <rdfs:comment>Phase in the silicon product lifecycle</rdfs:comment>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#llm_foundation_models">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>LLM / Foundation Models</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#deep_learning">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Deep Learning</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#graph_neural_networks">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Graph Neural Networks</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#reinforcement_learning">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Reinforcement Learning</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#bayesian_probabilistic">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Bayesian / Probabilistic</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#evolutionary_optimization">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Evolutionary / Metaheuristic Optimization</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#classical_ml">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Classical ML</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#symbolic_reasoning">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Symbolic Reasoning</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#transfer_learning">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Transfer Learning</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#anomaly_detection">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Anomaly Detection</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#generative_adversarial">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>Generative Adversarial Networks</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#general_ml_signals">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIMethod" />
+        <rdfs:label>General ML Signals</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#placement">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Placement</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#routing">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Routing</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#timing_analysis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Timing Analysis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#logic_synthesis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Logic Synthesis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#power_analysis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Power Analysis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#design_space_exploration">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Design Space Exploration</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#analog_circuit_design">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Analog Circuit Design</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#verification">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Verification</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#calibration">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Calibration</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#lithography_optimization">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Lithography Optimization</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#hotspot_detection">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Hotspot Detection</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#defect_detection">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Defect Detection</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#yield_prediction">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Yield Prediction</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#wafer_map_analysis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Wafer Map Analysis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#process_optimization">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Process Optimization</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#test_generation">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Test Generation</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#fault_diagnosis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Fault Diagnosis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#reliability_analysis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Reliability Analysis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#thermal_management">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Thermal Management</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#security_analysis">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#ChipDesignTask" />
+        <rdfs:label>Security Analysis</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#neural_accelerator">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#HardwareArtifact" />
+        <rdfs:label>Neural Network Accelerator</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#in_memory_computing">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#HardwareArtifact" />
+        <rdfs:label>In-Memory Computing Architecture</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#neuromorphic_chip">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#HardwareArtifact" />
+        <rdfs:label>Neuromorphic Chip</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#fpga_accelerator">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#HardwareArtifact" />
+        <rdfs:label>FPGA-based Accelerator</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#specialized_architecture">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#HardwareArtifact" />
+        <rdfs:label>Specialized AI Architecture</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#dnn_inference">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIWorkload" />
+        <rdfs:label>DNN Inference</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#dnn_training">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIWorkload" />
+        <rdfs:label>DNN Training</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#transformer_inference">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIWorkload" />
+        <rdfs:label>Transformer Inference</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#spiking_execution">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIWorkload" />
+        <rdfs:label>Spiking NN Execution</rdfs:label>
+    </owl:Class>
+    <owl:Class rdf:about="http://silicon-lifecycle.org/ontology#generic_ai_workload">
+        <rdfs:subClassOf rdf:resource="http://silicon-lifecycle.org/ontology#AIWorkload" />
+        <rdfs:label>Generic AI Workload</rdfs:label>
+    </owl:Class>
+    <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#design">
+        <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
+        <rdfs:label>Design</rdfs:label>
+    </owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#fabrication">
+        <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
+        <rdfs:label>Fabrication</rdfs:label>
+    </owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#packaging">
+        <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
+        <rdfs:label>Packaging &amp; Assembly</rdfs:label>
+    </owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#in_field">
+        <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
+        <rdfs:label>In-Field Operation</rdfs:label>
+    </owl:NamedIndividual>
+</rdf:RDF>

@@ -1,0 +1,14 @@
+# EDA / CAD
+IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems
+ACM Transactions on Design Automation of Electronic Systems
+Integration
+Journal of Computational Electronics
+#Microprocessors and Microsystems
+
+# VLSI / IC design & verification adjacent
+IEEE Transactions on Very Large Scale Integration (VLSI) Systems
+Microelectronics Journal
+
+# Manufacturing / reliability adjacent (optional; remove if too broad)
+IEEE Transactions on Semiconductor Manufacturing
+Microelectronics Reliability

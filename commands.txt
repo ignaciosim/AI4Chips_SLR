@@ -1,0 +1,8 @@
+python3 fetch_scopus.py --config ../config.json --outdir scopus_out7 --venues_file ../venues_eda.txt --max_pages 80 --start_year 2015 --end_year 2025
+
+python3 merge_scopus.py scopus_out7/
+
+python3 classify_scopus.py scopus_out7/raw_scopus_all.csv
+
+
+
