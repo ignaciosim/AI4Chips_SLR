@@ -118,7 +118,35 @@ def elsevier_abstract(doi, api_key):
         return None
     if not desc:
         return None
-    # Elsevier abstracts often include a nested <ce:para> structure; flatten
+    if isinstance(desc, dict):
+        desc = " ".join(str(v) for v in desc.values() if v)
+    return desc.strip() or None
+
+
+def sciencedirect_article_abstract(doi, api_key):
+    """Fallback: ScienceDirect Article Retrieval API. Works for Elsevier-
+    published journals (Microelectronics Journal, Microelectronics Reliability,
+    Integration / VLSI Journal, J. Industrial Info Integration). Different
+    endpoint from content/abstract — and the default view returns dc:description
+    even for keys that can't access FULL-view abstracts."""
+    url = f"https://api.elsevier.com/content/article/doi/{urllib.parse.quote(doi, safe='/')}"
+    req = urllib.request.Request(url, headers={
+        "X-ELS-APIKey": api_key,
+        "Accept": "application/json",
+        "User-Agent": USER_AGENT,
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            data = json.loads(resp.read())
+    except Exception:
+        return None
+    root = data.get("full-text-retrieval-response", data)
+    try:
+        desc = root["coredata"]["dc:description"]
+    except (KeyError, TypeError):
+        return None
+    if not desc:
+        return None
     if isinstance(desc, dict):
         desc = " ".join(str(v) for v in desc.values() if v)
     return desc.strip() or None
@@ -155,7 +183,8 @@ def scrape_doi_page(doi):
 
 def fetch_abstract(doi, cache, els_key=None):
     """Returns (abstract, source) using cache; (None, None) if unavailable.
-    Try OpenAlex → Elsevier API → publisher-page scrape."""
+    Fallback chain: OpenAlex → Elsevier Abstract API → ScienceDirect Article
+    API → publisher-page scrape."""
     key = doi.lower()
     if key in cache:
         c = cache[key]
@@ -164,7 +193,10 @@ def fetch_abstract(doi, cache, els_key=None):
     src = "openalex" if abs_text else None
     if not abs_text and els_key:
         abs_text = elsevier_abstract(doi, els_key)
-        src = "elsevier_api" if abs_text else None
+        src = "elsevier_abstract_api" if abs_text else None
+    if not abs_text and els_key:
+        abs_text = sciencedirect_article_abstract(doi, els_key)
+        src = "elsevier_article_api" if abs_text else None
     if not abs_text:
         abs_text = scrape_doi_page(doi)
         src = "publisher_meta" if abs_text else None

@@ -105,6 +105,28 @@ EXCLUDE_DOIS = {
     # regulation, not chip-related. Got in via "data-driven" + "aging" +
     # "rag" keyword collisions. Venue should really have been filtered.
     "10.1049/esi2.70039",
+    # Ma X. 2023: circuit-design paper where ML is the attacker (modeling
+    # attacks on PUF); same ML-as-attacker pattern as Bahador 2026. Not AI
+    # applied to chip design.
+    "10.1016/j.mejo.2023.105977",
+    # Ye X. 2018: subject matter is aerospace electromechanical relays
+    # (shelf-storage degradation), not semiconductor ICs. Triggered by the
+    # word "storage" and its venue (Microelectronics Reliability, which
+    # covers relays under a broad definition).
+    "10.1016/j.microrel.2018.06.085",
+    # Ma C. 2025: axial piston hydraulic pumps — completely off-topic. Got
+    # in via Digital Twin + fault diagnosis + ML keywords in J. Industrial
+    # Information Integration, which also publishes semiconductor work.
+    "10.1016/j.jii.2025.100966",
+    # All remaining Pomeranz papers follow the same false-positive pattern:
+    # classical LBIST / test-methodology work, no ML content. They slip the
+    # filter because of a substring collision — the ontology's "ilt" surface
+    # form (for lithography_optimization) matches "bu-ilt" in "Built-In
+    # Self-Test". The llm_foundation_models tag is similarly spurious.
+    "10.1109/tcad.2025.3536384",     # 2025, subvector rearrangement in LBIST
+    "10.1145/3643810",               # 2024, On-chip seed storage for BIST
+    "10.1109/tcad.2022.3233737",     # 2023, Storage-Based LBIST with cyclic tests
+    "10.1109/tvlsi.2023.3285691",    # 2023, Storage-Based LBIST with partitioned deterministic tests
 }
 
 
@@ -149,6 +171,39 @@ STAGE_OVERRIDES = {
 def effective_stage(paper):
     doi = (paper.get("doi") or "").lower()
     return STAGE_OVERRIDES.get(doi, paper["stage"])
+
+
+# Manual editorial promotions — force a paper into the shortlist for topical
+# importance even if the citation-based selection would miss it. Use sparingly;
+# these are deliberate editorial decisions overriding automated selection.
+# Keyed by DOI (lowercase). "role" must be unique enough to appear as a
+# Curator-tier row at the bottom of the stage's table.
+PROMOTE_DOIS = {
+    # Seo J. 2025: the only AI-for-ALD paper in the corpus. Atomic layer
+    # deposition is central to advanced-node manufacturing but nearly absent
+    # from the AI-for-Chips literature (1 of 321 high-confidence papers).
+    # Citation-based selection misses it (4 cites, too new); promoting for
+    # topicality.
+    "10.1016/j.jii.2025.100879": {
+        "stage": "fabrication",
+        "role": "Curator",
+    },
+}
+
+
+def promoted_for_stage(stage, candidate_papers, chosen_ids):
+    """Return list of papers to append as Curator rows for this stage.
+    Silently skips entries whose DOI isn't in the stage pool or whose paper
+    was already selected by the normal algorithm."""
+    out = []
+    for doi, meta in PROMOTE_DOIS.items():
+        if meta["stage"] != stage:
+            continue
+        paper = next((p for p in candidate_papers
+                      if (p.get("doi") or "").lower() == doi.lower()), None)
+        if paper and paper["doc_id"] not in chosen_ids:
+            out.append((paper, meta["role"]))
+    return out
 
 
 def load_gists(outdir):
@@ -362,7 +417,8 @@ def main():
         f"Curated gists loaded: {len(gists)}.",
         "Roles: **Anchor** = top-cited; **Exemplar** = best paper in an otherwise-uncovered "
         f"(method, task) pair; **Recent** = high cites/year from 2023+; **Newest** = {YEAR_MAX} "
-        "papers surfaced regardless of citation count (too new to rank).",
+        "papers surfaced regardless of citation count (too new to rank); **Curator** = "
+        "editorial pick for topical importance where citation-based selection would miss it.",
         "Stages with fewer than 10 papers are listed in full.",
         "",
     ]
@@ -400,6 +456,10 @@ def main():
                 lines.append(format_row(p, "Recent", gists))
             for p in newest:
                 lines.append(format_row(p, "Newest", gists))
+            # Editorial curator picks appended at the end of the stage table
+            chosen_ids = {p["doc_id"] for p in anchors + exemplars + recent + newest}
+            for paper, role in promoted_for_stage(stage, ps, chosen_ids):
+                lines.append(format_row(paper, role, gists))
         lines.append("")
 
     output = "\n".join(lines)
