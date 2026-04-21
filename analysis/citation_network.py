@@ -31,7 +31,7 @@ from pathlib import Path
 
 # ── paths ────────────────────────────────────────────────────────────────
 BASE = Path(__file__).resolve().parent.parent
-DATA = BASE / "scopus_out7"
+DATA = BASE / os.environ.get("SLR_DATADIR", "scopus_out7")
 CACHE_DIR = DATA / "openalex_cache"
 
 AI4CHIPS_JSON = DATA / "final_ai4chips_high_only.json"

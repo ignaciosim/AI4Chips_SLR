@@ -1,14 +1,23 @@
 """
 Create final dataset using only high-confidence ai4chips papers.
 Excludes ambiguous papers and filters out GaN semiconductor false positives.
+
+Usage: python create_final_high_confidence_only.py [outdir]
+       default outdir: scopus_out7
 """
 
 import pandas as pd
 import json
 import re
+import sys
+from pathlib import Path
 
-# Read only the high-confidence ai4chips dataset
-df = pd.read_csv('scopus_out7/ai4chips_high.csv')
+outdir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('scopus_out7')
+print(f"Working directory: {outdir}")
+
+df_all = pd.read_csv(outdir / 'classified_scopus.csv')
+df = df_all[(df_all['classification'] == 'ai_for_chips') &
+            (df_all['confidence'] == 'high')].copy()
 print(f"High-confidence ai4chips papers: {len(df)}")
 
 def is_gan_material_false_positive(row):
@@ -58,7 +67,7 @@ print(f"Final paper count: {len(clean_df)}")
 clean_df = clean_df.sort_values(by=['year', 'doc_id'], ascending=[True, True])
 
 # Export CSV
-csv_output = 'scopus_out7/final_ai4chips_high_only.csv'
+csv_output = outdir / 'final_ai4chips_high_only.csv'
 clean_df.to_csv(csv_output, index=False)
 print(f"\nExported CSV to: {csv_output}")
 
@@ -81,7 +90,7 @@ for _, row in clean_df.iterrows():
 
 # Extract metadata from raw JSONL
 papers = []
-with open('scopus_out7/raw_scopus_all.jsonl', 'r') as f:
+with open(outdir / 'raw_scopus_all.jsonl', 'r') as f:
     for line in f:
         record = json.loads(line)
         entry = record.get('entry', {})
@@ -119,7 +128,7 @@ with open('scopus_out7/raw_scopus_all.jsonl', 'r') as f:
 papers_sorted = sorted(papers, key=lambda x: (x['year'], x['doc_id']))
 
 # Write JSON
-json_output = 'scopus_out7/final_ai4chips_high_only.json'
+json_output = outdir / 'final_ai4chips_high_only.json'
 with open(json_output, 'w') as f:
     json.dump(papers_sorted, f, indent=2)
 

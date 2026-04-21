@@ -7,14 +7,16 @@ from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, MaxNLocator
+import plot_style
 from plot_style import (apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, load_csv_papers)
 
 # ── paths ────────────────────────────────────────────────────────────────
 from pathlib import Path
 BASE = Path(__file__).resolve().parent.parent
-DATA = BASE / "scopus_out7"
-CACHE_DIR = DATA / "openalex_cache"
+DATA = BASE / "scopus_out10"
+plot_style.set_data_dir(str(DATA))
+CACHE_DIR = BASE / "scopus_out7" / "openalex_cache"  # one-off external refs cache
 
 
 # ── data loading ─────────────────────────────────────────────────────────
@@ -281,7 +283,7 @@ def main():
 
     ax.set_xlabel("Year")
     ax.set_ylabel("Titles Containing Term (%)")
-    ax.set_title("Broad Terms in AI4Chips (N={:,})".format(sum(npa)))
+    ax.set_title("Broad Terms in AI for Chips (N={:,})".format(sum(npa)))
     ax.legend(fontsize=6.5, loc="upper left")
     ax.xaxis.set_major_locator(MultipleLocator(1))
     ax.set_xlim(2018, 2025)

@@ -64,7 +64,7 @@ def main():
                      fontsize=8, fontstyle="italic",
                      arrowprops=dict(arrowstyle="->", color="gray", lw=0.8))
 
-    ax1.set_title("AI4Chips Publication Volume (N = {})".format(len(papers)))
+    ax1.set_title("AI for Chips Publication Volume (N = {})".format(len(papers)))
     fig.tight_layout()
     save_figure(fig, "fig_pub_volume")
 

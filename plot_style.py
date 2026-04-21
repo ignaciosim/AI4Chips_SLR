@@ -29,6 +29,10 @@ JSON_PATH = os.path.join(DATA_DIR, "final_ai4chips_high_only.json")
 JSONL_PATH = os.path.join(DATA_DIR, "raw_scopus_all.jsonl")
 FIG_DIR = os.path.join(DATA_DIR, "figures")
 
+# Cap displayed year for trend figures. Data files may include later years
+# (partial/in-progress indexing), but figures should not show them.
+DISPLAY_YEAR_MAX = 2025
+
 
 def set_data_dir(path):
     """Override the default data directory."""
@@ -448,7 +452,8 @@ def load_csv_papers():
     """Load ai4chips CSV → list of dicts with method_tags and chip_tasks.
 
     Returns list of {doc_id, stage, year, title, source, classification,
-    confidence, method_tags: [str], chip_tasks: [str]}.
+    confidence, method_tags: [str], chip_tasks: [str]}. Papers with year >
+    DISPLAY_YEAR_MAX are dropped.
     """
     papers = []
     with open(CSV_PATH, "r", encoding="utf-8") as f:
@@ -457,6 +462,9 @@ def load_csv_papers():
         for row in reader:
             doc_id = row[0].strip()
             if not doc_id:
+                continue
+            yr = int(row[2])
+            if yr > DISPLAY_YEAR_MAX:
                 continue
             mtags = []
             ctasks = []
@@ -473,7 +481,7 @@ def load_csv_papers():
             papers.append({
                 "doc_id": doc_id,
                 "stage": row[1].strip(),
-                "year": int(row[2]),
+                "year": yr,
                 "title": row[3],
                 "source": VENUE_ALIASES.get(row[4].strip(), row[4].strip()),
                 "classification": row[5].strip(),
@@ -485,17 +493,29 @@ def load_csv_papers():
 
 
 def load_json_papers():
-    """Load ai4chips JSON → list of dicts with cited_by_count + affiliations."""
+    """Load ai4chips JSON → list of dicts with cited_by_count + affiliations.
+    Papers with year > DISPLAY_YEAR_MAX are dropped.
+    """
     with open(JSON_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)
+        data = json.load(f)
+    return [p for p in data if int(p.get("year", 0)) <= DISPLAY_YEAR_MAX]
 
 
 def load_jsonl_papers():
-    """Load full corpus JSONL → list of dicts."""
+    """Load full corpus JSONL → list of dicts. Records with year >
+    DISPLAY_YEAR_MAX are dropped.
+    """
     papers = []
     with open(JSONL_PATH, "r", encoding="utf-8") as f:
         for line in f:
-            papers.append(json.loads(line))
+            rec = json.loads(line)
+            yr = rec.get("year")
+            try:
+                if yr is not None and int(yr) > DISPLAY_YEAR_MAX:
+                    continue
+            except (TypeError, ValueError):
+                pass
+            papers.append(rec)
     return papers
 
 

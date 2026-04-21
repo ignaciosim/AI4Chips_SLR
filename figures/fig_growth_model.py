@@ -9,11 +9,13 @@ import numpy as np
 from scipy.optimize import curve_fit
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, MaxNLocator
+import plot_style
 from plot_style import apply_style, save_figure, format_axes, SINGLE_COL, COLORS
 
 # ── paths ────────────────────────────────────────────────────────────────
 from pathlib import Path
-DATA = Path(__file__).resolve().parent.parent / "scopus_out7"
+DATA = Path(__file__).resolve().parent.parent / "scopus_out10"
+plot_style.set_data_dir(str(DATA))
 
 
 def exp_model(t, a, b):
@@ -104,7 +106,7 @@ def main():
 
     ax.set_xlabel("Year")
     ax.set_ylabel("Papers per Year")
-    ax.set_title("AI4Chips Growth Model (N={})".format(int(observed.sum())))
+    ax.set_title("AI for Chips Growth Model (N={})".format(int(observed.sum())))
     ax.legend(fontsize=5.5, loc="upper left")
     ax.xaxis.set_major_locator(MultipleLocator(5))
     ax.set_xlim(2014.5, 2030.5)

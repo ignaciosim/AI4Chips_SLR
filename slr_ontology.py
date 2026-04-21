@@ -78,6 +78,22 @@ PHASES: Dict[str, LifecyclePhase] = {
             '"thermal management"'
         ),
     ),
+    "transit": LifecyclePhase(
+        key="transit",
+        label="Transit",
+        description="Foundry-to-system: post-fab test, supply chain integrity, authentication, binning.",
+        scopus_terms=(
+            '"supply chain" OR "semiconductor supply chain" OR '
+            '"counterfeit" OR "IC counterfeit" OR "counterfeit detection" OR '
+            '"hardware authentication" OR "physically unclonable function" OR PUF OR '
+            '"chip provenance" OR "chain of custody" OR traceability OR '
+            '"burn-in" OR "system-level test" OR SLT OR '
+            '"final test" OR "package test" OR "wafer probe" OR "wafer sort" OR '
+            '"known good die" OR KGD OR '
+            '"hardware trojan" OR "trojan detection" OR '
+            '"binning" OR "speed binning"'
+        ),
+    ),
     "in_field": LifecyclePhase(
         key="in_field",
         label="In-Field Operation",
@@ -87,6 +103,21 @@ PHASES: Dict[str, LifecyclePhase] = {
             'reliability OR aging OR wearout OR silent OR radiation OR CEE OR SEE OR '
             'BTI OR HCI OR electromigration OR SDE OR SDC OR '
             '"anomaly detection" OR "single-event effect" OR "predictive maintenance"'
+        ),
+    ),
+    "disposal": LifecyclePhase(
+        key="disposal",
+        label="Disposal",
+        description="End-of-life: e-waste, recycling, decommissioning, secure data destruction.",
+        scopus_terms=(
+            '"electronic waste" OR "e-waste" OR WEEE OR '
+            '"end-of-life" OR "end of life electronics" OR '
+            '"electronics recycling" OR "semiconductor recycling" OR '
+            '"circular economy electronics" OR "material recovery" OR '
+            '"urban mining" OR '
+            '"decommissioning" OR demanufacturing OR dismantling OR '
+            '"secure erasure" OR "data sanitization" OR "cryptographic erasure" OR '
+            '"RoHS" OR "hazardous substances"'
         ),
     ),
 }

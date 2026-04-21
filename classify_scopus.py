@@ -50,6 +50,7 @@ from slr_ontology import (
     AI_WORKLOADS,
     CHIPS_FOR_AI_HEURISTIC_PHRASES,
     CHIPS_FOR_AI_CONFIRM_KEYWORDS,
+    PHASES,
     match_ontology_classes,
     detect_ai_methods,
 )
@@ -344,7 +345,7 @@ def export_summary(annotations: List[PaperAnnotation], outdir: Path):
         lines.append(f"  {conf:20s}: {count:4d} ({100*count/total:5.1f}%)")
 
     lines.append("\nBreakdown by lifecycle phase:")
-    for stage in ["design", "fabrication", "packaging", "in_field"]:
+    for stage in PHASES.keys():
         stage_anns = [a for a in annotations if a.stage == stage]
         if not stage_anns:
             continue
