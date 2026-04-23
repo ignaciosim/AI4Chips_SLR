@@ -8,22 +8,44 @@ journal articles (by design); this script mirrors that analysis over the
 patent record to quantify how much industrial activity sits outside the
 corpus.
 
-Two complementary analyses are produced:
+Three complementary artefacts are produced:
 
-  1. **Strict AI-for-Chips patent count per major chip company.** A patent
-     qualifies as AI-for-Chips only if it carries **both** a chip-design /
-     EDA CPC classification and a machine-learning CPC classification — the
-     patent equivalent of the ontology's "AI method AND chip task" rule.
+  1. **Strict AI-for-Chips patent list and per-company count.** A patent
+     qualifies as AI-for-Chips only if *all three* of the following hold —
+     the patent equivalent of the ontology's "AI method AND chip task" rule
+     plus a title-level precision filter:
 
-       Chip-side CPCs:  G06F30, G06F17/50, G06F115, G06F119, G06F11/22,
-                        G01R31/28, H01L
-       AI-side CPCs:    G06N (all subclasses)
+       (a) Chip-design / EDA CPC class present
+              G06F30, G06F17/50, G06F115, G06F119, G06F11/22, G01R31/28
+          (H01L deliberately excluded — too broad; catches AI-accelerator
+          chip filings, power electronics, and process-equipment patents
+          unrelated to AI-for-chip-design.)
+       (b) Machine-learning CPC class present (any subclass of G06N)
+       (c) The patent title explicitly names an AI method (see
+           TITLE_METHOD_REGEX below)
 
-  2. **Case-study paper → patent lookup.** For selected highly-cited papers,
-     probe the patent record for inventor-level matches with plausible
-     assignees. This is deliberately narrow (three papers, targeted probes),
-     because at-scale automatic paper-to-patent matching fails on common
-     Chinese-surname ambiguity.
+     Outputs: `patents_strict_list.csv` (one row per family) and
+     `patents_vs_publications_strict.csv` (aggregate per benchmark company).
+
+  2. **Chip-keyword sensitivity cut.** A looser title filter (chip-domain
+     keywords such as "semiconductor", "layout", "lithography", etc.) is
+     applied in place of the AI-method title filter, preserving the CPC
+     conjunction. This captures AI-for-Chips filings whose titles omit the
+     method name (e.g., "Method and apparatus for ..."). Emitted for
+     reviewer sensitivity analysis, not headline reporting.
+
+     Output: `patents_strict_list_chipkw_sensitivity.csv`.
+
+  3. **Case-study paper → patent lookup.** For selected highly-cited
+     papers, probe the patent record for inventor-level matches with
+     plausible assignees. Narrow by design — at-scale automatic
+     paper-to-patent matching fails on common Chinese-surname ambiguity.
+
+     Output: `case_study_patents.csv`.
+
+A loose OR-based CPC count (`patents_vs_publications.csv`) is also produced
+by default and retained only as a magnitude reference; it is not the
+headline number and is not used in the paper paragraph.
 
 Prerequisites:
   * Google Cloud project with BigQuery access
@@ -32,19 +54,12 @@ Prerequisites:
   * The public dataset `patents-public-data.patents.publications` is free to
     query from any GCP project
 
-Outputs (all in --datadir, default scopus_out10/):
-  patents_vs_publications_strict.csv   — primary result, strict CPC count
-  patents_vs_publications.csv          — loose OR-based count, for footnote
-  case_study_patents.csv               — raw hits for DREAMPlace / VeriGen / GAN-OPC
-  patent_analysis_report.md            — human-readable summary
-
 Usage:
   python3 analysis/patent_analysis.py --datadir scopus_out10
 """
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 
@@ -88,11 +103,6 @@ COMPANY_PATTERNS = [
     ("imec",                 r"(?i)\bimec\b"),
 ]
 
-# Approx publication counts from the industry-affiliation analysis
-# (see the full-corpus classification in fresh runs of this script's
-# sibling analyses). These are inlined as best-effort values for the
-# strict-vs-pubs comparison; regenerate by rerunning the affiliation
-# keyword classifier.
 PUBLICATION_COUNTS = {
     "Intel": 46, "NVIDIA": 4, "Samsung": 28, "NXP": 16,
     "Siemens": 14, "Mentor Graphics": 0, "STMicroelectronics": 41,
@@ -103,7 +113,46 @@ PUBLICATION_COUNTS = {
     "ASML": 0, "imec": 0, "ARM": 0,
 }
 
-# Case studies — targeted paper -> patent probes
+# CPC-conjunction filter (shared by strict and sensitivity cuts).
+# H01L deliberately excluded — see module docstring.
+CHIP_CPC_WHERE = (
+    "c.code LIKE 'G06F30%' OR c.code LIKE 'G06F17/50%' "
+    "OR c.code LIKE 'G06F115%' OR c.code LIKE 'G06F119%' "
+    "OR c.code LIKE 'G06F11/22%' OR c.code LIKE 'G01R31/28%'"
+)
+AI_CPC_WHERE = "c.code LIKE 'G06N%'"
+
+# Title-level precision filter: the patent title must explicitly name an AI
+# method. This is what takes the count from ~155 (CPC + chip-keywords) down
+# to ~48 (CPC + method-names). See patents_strict_list_chipkw_sensitivity.csv
+# for the broader alternative.
+TITLE_METHOD_REGEX = (
+    r"(machine learning|artificial intelligence|\bai[- ]based\b|"
+    r"neural network|deep learning|reinforcement learning|"
+    r"graph neural|generative adversarial|\bgan[- ]|"
+    r"transformer[- ]based|large language model|\bllm[- ]|"
+    r"convolutional|recurrent neural|\bcnn[- ]|\brnn[- ]|\blstm\b|"
+    r"bayesian optimization|gaussian process|"
+    r"active learning|self-supervised|semi-supervised|"
+    r"variational autoencoder|\bvae\b|diffusion model)"
+)
+
+# Sensitivity cut: a chip-domain keyword (broader than method names).
+TITLE_CHIP_POS_REGEX = (
+    r"(integrated circuit|semiconductor|wafer|die|transistor|mosfet|"
+    r"finfet|cmos|ic design|chip design|chiplet|layout|placement|routing|"
+    r"floorplan|synthesis|lithograph|mask|opc|optical proximity|"
+    r"inverse lithograph|metrology|yield|defect|rtl|verilog|vhdl|netlist|"
+    r"hdl|timing|\bic\b|eda|power grid|power delivery|pdn|ir drop|"
+    r"clock tree|trojan|fab|fabric|scatterometry|post-silicon|silicon|"
+    r"imaging system|overlay|bump)"
+)
+TITLE_CHIP_NEG_REGEX = (
+    r"(battery|flood|drug|medical|genomic|pharmaceutical|"
+    r"autonomous vehicle|autonomous drivin|traffic simulation|"
+    r"traffic flow|robot(?!ic)|robotic)"
+)
+
 CASE_STUDIES = [
     {
         "paper":    "DREAMPlace (Lin 2021)",
@@ -137,44 +186,98 @@ def _build_company_cte() -> str:
     return f"WITH company_patterns AS (SELECT * FROM UNNEST([\n    {rows}\n  ]))"
 
 
-def run_strict_company_count(client: bigquery.Client, out_path: Path) -> None:
-    """AI-for-Chips patent families per company: chip-CPC AND AI-CPC."""
-    sql = f"""
+def _strict_list_sql(title_regex: str) -> str:
+    """Per-family strict list with CPC conjunction and a title-regex filter."""
+    return f"""
     {_build_company_cte()},
     strict_ai_chip AS (
-      SELECT p.family_id, asg.name AS assignee_name
+      SELECT
+        p.family_id,
+        p.publication_number,
+        CAST(p.publication_date AS STRING) AS earliest_date,
+        asg.name AS assignee_name,
+        p.title_localized[SAFE_OFFSET(0)].text AS title,
+        p.country_code,
+        (SELECT STRING_AGG(c.code, ';') FROM UNNEST(p.cpc) c) AS cpc_codes
       FROM `patents-public-data.patents.publications` p,
       UNNEST(p.assignee_harmonized) asg
       WHERE p.publication_date BETWEEN 20150101 AND 20261231
-        AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c
-                   WHERE c.code LIKE 'G06F30%' OR c.code LIKE 'G06F17/50%'
-                      OR c.code LIKE 'G06F115%' OR c.code LIKE 'G06F119%'
-                      OR c.code LIKE 'G06F11/22%' OR c.code LIKE 'G01R31/28%'
-                      OR c.code LIKE 'H01L%')
-        AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c WHERE c.code LIKE 'G06N%')
+        AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c WHERE {CHIP_CPC_WHERE})
+        AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c WHERE {AI_CPC_WHERE})
+        AND REGEXP_CONTAINS(
+              LOWER(p.title_localized[SAFE_OFFSET(0)].text),
+              r'{title_regex}')
+    ),
+    first_per_family AS (
+      SELECT
+        cp.name AS matched_company,
+        sac.family_id,
+        ANY_VALUE(sac.publication_number) AS publication_number,
+        MIN(sac.earliest_date) AS earliest_date,
+        ANY_VALUE(sac.assignee_name) AS assignee,
+        ANY_VALUE(sac.title) AS title,
+        ANY_VALUE(sac.country_code) AS country_code,
+        ANY_VALUE(sac.cpc_codes) AS cpc_codes
+      FROM company_patterns cp
+      JOIN strict_ai_chip sac
+        ON REGEXP_CONTAINS(sac.assignee_name, cp.pattern)
+      GROUP BY cp.name, sac.family_id
     )
-    SELECT cp.name AS company,
-           COUNT(DISTINCT sac.family_id) AS strict_patent_families
-    FROM company_patterns cp
-    JOIN strict_ai_chip sac ON REGEXP_CONTAINS(sac.assignee_name, cp.pattern)
-    GROUP BY company
-    ORDER BY strict_patent_families DESC
+    SELECT * FROM first_per_family
+    ORDER BY matched_company, earliest_date DESC
     """
-    print("[strict] Counting AI-for-Chips patent families per company...")
-    df = client.query(sql).to_dataframe()
-    df["publications_in_slr"] = df["company"].map(PUBLICATION_COUNTS).fillna(0).astype(int)
-    df["patent_to_pub_ratio"] = df.apply(
-        lambda r: round(r["strict_patent_families"] / r["publications_in_slr"], 1)
-        if r["publications_in_slr"] > 0 else None,
-        axis=1,
-    )
-    df.to_csv(out_path, index=False)
-    print(f"  wrote {out_path}")
+
+
+def run_strict_list(client: bigquery.Client, outdir: Path,
+                    title_regex: str, out_name: str,
+                    post_neg_regex: str | None = None) -> "pd.DataFrame":
+    """Emit per-family strict list. Optionally drop titles that also match
+    a negative regex (used only in the chip-keyword sensitivity cut)."""
+    import pandas as pd
+    print(f"[strict] Building per-family list → {out_name} ...")
+    df = client.query(_strict_list_sql(title_regex)).to_dataframe()
+    if post_neg_regex is not None and not df.empty:
+        import re
+        neg = re.compile(post_neg_regex, re.IGNORECASE)
+        df = df[~df["title"].fillna("").str.contains(neg, regex=True)].reset_index(drop=True)
+    path = outdir / out_name
+    df.to_csv(path, index=False)
+    print(f"  wrote {path}  ({len(df)} rows)")
     return df
 
 
-def run_loose_company_count(client: bigquery.Client, out_path: Path) -> None:
-    """Loose OR-based count for footnote / sensitivity context."""
+def run_strict_company_count(outdir: Path, strict_df) -> "pd.DataFrame":
+    """Aggregate the per-family list into a per-company table against the
+    SLR publication counts. Covers the full 28-company benchmark set even
+    if some companies have zero patent hits."""
+    import pandas as pd
+    counts = strict_df.groupby("matched_company").size().to_dict() if len(strict_df) else {}
+    rows = []
+    for name, _ in COMPANY_PATTERNS:
+        n_pat = int(counts.get(name, 0))
+        n_pub = PUBLICATION_COUNTS.get(name, 0)
+        if n_pub == 0:
+            ratio = "inf" if n_pat > 0 else "—"
+        else:
+            ratio = f"{n_pat / n_pub:.2f}"
+        rows.append({
+            "company": name,
+            "strict_patent_families": n_pat,
+            "publications_in_slr": n_pub,
+            "patent_to_pub_ratio": ratio,
+        })
+    df = pd.DataFrame(rows).sort_values(
+        by=["strict_patent_families", "publications_in_slr"],
+        ascending=[False, False], ignore_index=True,
+    )
+    path = outdir / "patents_vs_publications_strict.csv"
+    df.to_csv(path, index=False)
+    print(f"  wrote {path}  ({len(df)} companies)")
+    return df
+
+
+def run_loose_company_count(client: bigquery.Client, out_path: Path) -> "pd.DataFrame":
+    """Loose OR-based count, kept as magnitude reference only."""
     sql = f"""
     {_build_company_cte()},
     loose_ai_chip AS (
@@ -204,6 +307,7 @@ def run_loose_company_count(client: bigquery.Client, out_path: Path) -> None:
 
 def run_case_studies(client: bigquery.Client, out_path: Path) -> None:
     """Targeted paper->patent lookups for a handful of highly-cited papers."""
+    import pandas as pd
     all_rows = []
     for cs in CASE_STUDIES:
         print(f"[case]  Probing {cs['paper']}...")
@@ -239,14 +343,15 @@ def run_case_studies(client: bigquery.Client, out_path: Path) -> None:
                 lambda xs: "; ".join(list(xs)[:6]) if xs is not None else "")
         all_rows.append(df)
         print(f"         found {len(df)} patent rows")
-    import pandas as pd
     combined = pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame()
     combined.to_csv(out_path, index=False)
     print(f"  wrote {out_path}  ({len(combined)} total rows)")
 
 
-def write_report(strict_df, loose_df, outdir: Path) -> None:
+def write_report(company_df, sens_n: int | None, loose_df, outdir: Path) -> None:
     path = outdir / "patent_analysis_report.md"
+    import pandas as pd
+    total_strict = int(company_df["strict_patent_families"].sum())
     lines = [
         "# Patent-landscape analysis for AI-for-Chips",
         "",
@@ -258,59 +363,85 @@ def write_report(strict_df, loose_df, outdir: Path) -> None:
         "## Criterion",
         "",
         "To match the SLR's \"AI method applied to a chip design task\" rule, "
-        "a patent qualifies as AI-for-Chips only if it carries **both** a "
-        "chip-design/EDA CPC (G06F30, G06F17/50, G06F115, G06F119, G06F11/22, "
-        "G01R31/28, or H01L) **and** a machine-learning CPC (anywhere under "
+        "a patent qualifies as AI-for-Chips only if *all three* conditions hold:",
+        "",
+        "1. Its Cooperative Patent Classification codes include a "
+        "chip-design/EDA class (G06F30, G06F17/50, G06F115, G06F119, "
+        "G06F11/22, or G01R31/28). H01L is deliberately excluded: it catches "
+        "AI-accelerator chip patents (chips-for-AI), power electronics, and "
+        "process-equipment filings whose AI content is unrelated to chip "
+        "design.",
+        "2. Its CPC codes include a machine-learning class (any subclass of "
         "G06N).",
+        "3. Its title explicitly names an AI method — one of *artificial "
+        "intelligence*, *machine learning*, *neural network*, *deep "
+        "learning*, *reinforcement learning*, *graph neural*, *generative "
+        "adversarial network*, *convolutional*, *recurrent*, *LSTM*, "
+        "*transformer-based*, *LLM*, *variational autoencoder*, *Bayesian "
+        "optimization*, *Gaussian process*, *active/self-supervised/"
+        "semi-supervised learning*, or *diffusion model*.",
         "",
-        "## Strict AI-for-Chips patent families per company, 2015–2026",
+        "The title-keyword step is a precision filter: CPC-only filtering "
+        "leaves residual false positives whose AI content appears in an "
+        "unrelated claim or dependent patent. Requiring the method to be "
+        "named in the title matches the rigour of the peer-reviewed journal "
+        "corpus, where a paper earns an AI-for-Chips tag only when method "
+        "and task co-occur in the title or abstract.",
         "",
-        "| Company | Patent families | Publications in SLR | Ratio |",
+        f"## Strict AI-for-Chips patent families per company, 2015–2026 "
+        f"(total n = {total_strict})",
+        "",
+        "Per-family list: `patents_strict_list.csv`. Per-company aggregation: "
+        "`patents_vs_publications_strict.csv`.",
+        "",
+        "| Company | Patent families | Publications in SLR | Patent-to-publication ratio |",
         "|---|---:|---:|---:|",
     ]
-    import pandas as pd
-    for _, r in strict_df.iterrows():
-        ratio = (f"{r['patent_to_pub_ratio']}×"
-                 if pd.notna(r["patent_to_pub_ratio"]) else "∞ / —")
+    for _, r in company_df.iterrows():
+        ratio_s = r["patent_to_pub_ratio"]
+        ratio_cell = ratio_s if ratio_s in ("inf", "—") else f"{ratio_s}×"
         lines.append(
-            f"| {r['company']} | {r['strict_patent_families']:,} | "
-            f"{r['publications_in_slr']:,} | {ratio} |"
+            f"| {r['company']} | {r['strict_patent_families']} | "
+            f"{r['publications_in_slr']} | {ratio_cell} |"
         )
     lines += [
         "",
-        "## Sensitivity: loose OR-based count for comparison",
+        "## Sensitivity cuts",
         "",
-        "The loose filter accepts patents with *either* a chip-design or an "
-        "AI CPC (not both). Under this definition the counts are roughly "
-        "10–20× higher but include traditional algorithmic EDA patents with "
-        "no ML and general-purpose neural-network patents with no chip "
-        "content. We report loose counts only for methodological sensitivity.",
-        "",
-        "| Company | Loose families | Strict families | Strict / loose |",
-        "|---|---:|---:|---:|",
     ]
-    loose_map = dict(zip(loose_df["company"], loose_df["loose_patent_families"]))
-    for _, r in strict_df.iterrows():
-        c = r["company"]
-        loose_n = loose_map.get(c, 0)
-        pct = f"{100*r['strict_patent_families']/loose_n:.0f}%" if loose_n else "—"
-        lines.append(
-            f"| {c} | {loose_n:,} | {r['strict_patent_families']:,} | {pct} |"
-        )
+    if sens_n is not None:
+        lines += [
+            f"**Chip-keyword title filter (n = {sens_n}).** Replaces the "
+            f"method-name title regex with a chip-domain keyword set "
+            f"(semiconductor / layout / lithography / mask / metrology / "
+            f"yield / RTL / Verilog / etc., minus a negative list such as "
+            f"battery / medical / autonomous vehicle). Captures filings "
+            f"whose titles use "
+            f"non-method-named conventions (e.g., \"Method and apparatus "
+            f"for ...\"), at the cost of lower precision. Per-family list: "
+            f"`patents_strict_list_chipkw_sensitivity.csv`.",
+            "",
+        ]
+    if loose_df is not None:
+        lines += [
+            "**Loose OR-based CPC count.** Accepts patents with *either* a "
+            "chip-design or an AI CPC (not both). Orders of magnitude higher "
+            "than the strict count; kept only as a sanity-check reference "
+            "for the corpus size. Per-company aggregation: "
+            "`patents_vs_publications.csv`.",
+            "",
+            "| Company | Loose families | Strict families |",
+            "|---|---:|---:|",
+        ]
+        loose_map = dict(zip(loose_df["company"], loose_df["loose_patent_families"]))
+        for _, r in company_df.iterrows():
+            c = r["company"]
+            loose_n = int(loose_map.get(c, 0))
+            lines.append(
+                f"| {c} | {loose_n:,} | {r['strict_patent_families']} |"
+            )
+        lines += [""]
     lines += [
-        "",
-        "## Interpretation",
-        "",
-        "Semiconductor-equipment makers (Applied Materials, KLA, ASML, imec) "
-        "have disproportionately high AI-qualifying shares of their chip "
-        "patent output (12–49%), indicating that ML is penetrating process "
-        "equipment alongside its more visible role in EDA. Pure chipmakers "
-        "and fabless design houses run at 3–10% strict/loose ratios. "
-        "Infineon and STMicroelectronics are unusual in publishing more "
-        "AI-for-Chips journal articles than they patent, consistent with "
-        "their analog/power-IC focus and their presence in the device-physics "
-        "and reliability journals indexed by the SLR corpus.",
-        "",
         "## Regenerate",
         "",
         "```",
@@ -329,7 +460,9 @@ def main() -> None:
     ap.add_argument("--project", default=None,
                     help="GCP project ID (default: auto-detected)")
     ap.add_argument("--skip-loose", action="store_true",
-                    help="Skip the loose OR-based sensitivity query")
+                    help="Skip the loose OR-based magnitude reference query")
+    ap.add_argument("--skip-sensitivity", action="store_true",
+                    help="Skip the chip-keyword sensitivity cut")
     ap.add_argument("--skip-cases", action="store_true",
                     help="Skip the case-study probes")
     args = ap.parse_args()
@@ -340,14 +473,33 @@ def main() -> None:
               else bigquery.Client())
     print(f"BigQuery project: {client.project}")
 
-    strict_df = run_strict_company_count(client, outdir / "patents_vs_publications_strict.csv")
+    strict_df = run_strict_list(
+        client, outdir,
+        title_regex=TITLE_METHOD_REGEX,
+        out_name="patents_strict_list.csv",
+    )
+    company_df = run_strict_company_count(outdir, strict_df)
+
+    sens_n = None
+    if not args.skip_sensitivity:
+        sens_df = run_strict_list(
+            client, outdir,
+            title_regex=TITLE_CHIP_POS_REGEX,
+            out_name="patents_strict_list_chipkw_sensitivity.csv",
+            post_neg_regex=TITLE_CHIP_NEG_REGEX,
+        )
+        sens_n = len(sens_df)
+
     loose_df = None
     if not args.skip_loose:
-        loose_df = run_loose_company_count(client, outdir / "patents_vs_publications.csv")
+        loose_df = run_loose_company_count(
+            client, outdir / "patents_vs_publications.csv"
+        )
+
     if not args.skip_cases:
         run_case_studies(client, outdir / "case_study_patents.csv")
-    if loose_df is not None:
-        write_report(strict_df, loose_df, outdir)
+
+    write_report(company_df, sens_n, loose_df, outdir)
 
     print("\nDone.")
 
