@@ -9,26 +9,45 @@ by every downstream script.
 ```
 slr_ontology.py              ← single source of truth (vocabulary, taxonomy, query builders)
     │
-    ├── fetch_scopus.py       ← step 1: Scopus API retrieval
+    ├── fetch_scopus.py                      ← step 1: Scopus API retrieval
     │       │
     │       ▼
-    │   raw_scopus_<phase>.jsonl + .csv
+    │   raw_scopus_<phase>.jsonl + .csv      (design, fabrication, packaging, transit,
+    │       │                                 in_field, disposal)
     │       │
-    │   merge_scopus.py       ← step 2: deduplicate + flatten (no domain knowledge)
+    │   merge_scopus.py                      ← step 2: deduplicate + flatten
     │       │
     │       ▼
-    │   raw_scopus_all.csv
+    │   raw_scopus_all.{csv,jsonl}
     │       │
-    └── classify_scopus.py    ← step 3: entity extraction + directionality + method tagging
-            │
-            ▼
-        classified_scopus.csv
-        ai_methods_long.csv
-        pivot_ai_methods_counts.csv
-        pivot_ai_methods_share.csv
-        pivot_ai_methods_by_stage.csv
-        pivot_ai_methods_counts_ai4chips_only.csv
-        classification_summary.txt
+    │   classify_scopus.py                   ← step 3: entity extraction + directionality
+    │       │                                   + method tagging + pivot tables
+    │       ▼
+    │   classified_scopus.csv  +  ai_methods_long.csv  +  pivot_*.csv
+    │       │
+    │   create_final_high_confidence_only.py ← step 4: high-confidence AI-for-Chips
+    │       │                                   filter + GaN-material FP removal
+    │       ▼
+    │   final_ai4chips_high_only.{csv,json}  (high-conf corpus, n ≈ 321)
+    │       │
+    │       ├── analysis/generate_stage_shortlist.py    ← step 5a: survey + manual-FP
+    │       │           │                                  curation → 298-paper
+    │       │           ▼                                  analysed corpus + per-stage
+    │       │       stage_shortlists.csv                  shortlist tables
+    │       │
+    │       ├── figures/generate_all_figures.py        ← step 5b: publication figures
+    │       │           │                                  (17-module master runner)
+    │       │           ▼
+    │       │       figures/fig_*.{pdf,png}
+    │       │
+    │       └── analysis/patent_analysis.py            ← step 5c (optional branch):
+    │                   │                                  patent-landscape companion
+    │                   ▼                                  (requires BigQuery auth)
+    │               patents_strict_list.csv,
+    │               patents_vs_publications_strict.csv
+    │
+    └── analysis/*.py                        (15+ standalone text-output analyses —
+                                              geo, citation, venues, etc.)
 ```
 
 ## What changed (old → new)
@@ -125,6 +144,10 @@ dry run without executing.
 
 ## Usage (individual scripts — low-level)
 
+> Prefer `make <target>` from the RUNBOOK above. This section documents the
+> underlying per-script CLIs for cases where you want to drive individual
+> stages by hand (debugging, partial reruns, custom flag combinations).
+
 ### Prerequisites
 
 ```bash
@@ -134,19 +157,20 @@ pip install -r requirements.txt
 ### Step 1: Fetch from Scopus
 
 ```bash
-# Basic (all phases, 2016–last full year)
-python fetch_scopus.py --config config.json --ai_focus
+# Basic (all phases, 2015–2026 window as used by the current paper corpus)
+python fetch_scopus.py --config ../config.json \
+    --venues_file ../venues_eda.txt \
+    --start_year 2015 --end_year 2026 --max_pages 80 \
+    --outdir scopus_out11
 
-# With venue filter and full pagination
-python fetch_scopus.py --config config.json --ai_focus \
-    --venues_file venues_eda.txt --max_pages 20
-
-# Specific year range
-python fetch_scopus.py --config config.json --ai_focus \
-    --start_year 2019 --end_year 2025
+# Narrow window for a quick revision run
+python fetch_scopus.py --config ../config.json \
+    --venues_file ../venues_eda.txt \
+    --start_year 2019 --end_year 2025 --max_pages 20 \
+    --outdir scopus_out11
 ```
 
-Output: `scopus_out/raw_scopus_{design,fabrication,packaging,in_field}.jsonl`
+Output: `scopus_out11/raw_scopus_{design,fabrication,packaging,transit,in_field,disposal}.jsonl`
 
 ### Step 2: Merge and deduplicate
 
@@ -178,15 +202,59 @@ python slr_ontology.py
 
 ## Output files
 
-| File                                       | Description                                                   |
-|--------------------------------------------|---------------------------------------------------------------|
+All paths below are relative to the per-run data directory (`DATADIR`,
+default `scopus_out10/`).
+
+### Stage 1–2 — fetch + merge
+
+| File | Description |
+|---|---|
+| `raw_scopus_<phase>.{jsonl,csv}` | Per-lifecycle-phase raw retrieval (6 phases) |
+| `raw_scopus_all.{csv,jsonl}`     | Deduplicated union of all phases |
+| `raw_scopus_venue_counts.csv`    | Per-venue retrieval counts (sanity check) |
+| `scopus_counts_by_stage_year.csv`| Retrieval volume by phase × year |
+
+### Stage 3 — classify
+
+| File | Description |
+|---|---|
 | `classified_scopus.csv`                    | Per-paper: classification, confidence, method tags, entity matches |
-| `ai_methods_long.csv`                      | Long-form: one row per (paper, method) pair                   |
-| `pivot_ai_methods_counts.csv`              | Method × year counts (all papers)                             |
-| `pivot_ai_methods_share.csv`               | Method × year normalized shares                               |
-| `pivot_ai_methods_by_stage.csv`            | Method × stage × year                                         |
-| `pivot_ai_methods_counts_ai4chips_only.csv`| Method × year counts (only ai_for_chips + both)               |
-| `classification_summary.txt`               | Human-readable summary with precision estimate                |
+| `ai_methods_long.csv`                      | Long-form: one row per (paper, method) pair |
+| `pivot_ai_methods_counts.csv`              | Method × year counts (all papers) |
+| `pivot_ai_methods_share.csv`               | Method × year normalized shares |
+| `pivot_ai_methods_by_stage.csv`            | Method × stage × year |
+| `pivot_ai_methods_counts_ai4chips_only.csv`| Method × year counts (ai_for_chips + both) |
+| `classification_summary.txt`               | Human-readable summary with precision estimate |
+
+### Stage 4 — high-confidence filter
+
+| File | Description |
+|---|---|
+| `final_ai4chips_high_only.{csv,json}` | High-confidence AI-for-Chips corpus, post-GaN-FP filter (n ≈ 321). Source for all downstream analyses and figures. |
+
+### Stage 5a — curated shortlist
+
+| File | Description |
+|---|---|
+| `stage_shortlists.csv` | Per-lifecycle-phase curated shortlist tables (n = 298 after survey + manual-FP removal). Basis for the paper's headline tables. |
+
+### Stage 5b — figures (in `DATADIR/figures/`)
+
+`figures/fig_*.{pdf,png}` — 17 publication figures (pub-volume, AI methods,
+chip tasks, analog/digital split, commercial apps, venues, geography,
+citations, method × country, method × task, emerging topics, growth model,
+task combinations, keyword × country, linguistic terms, etc.). See
+`figures/generate_all_figures.py` for the full list.
+
+### Stage 5c — patent-landscape companion (optional)
+
+| File | Description |
+|---|---|
+| `patents_strict_list.csv`                          | Per-family audit list of strict AI-for-Chips patents (CPC-conjunction ∧ AI-method title keyword) |
+| `patents_strict_list_chipkw_sensitivity.csv`       | Higher-recall sensitivity cut (chip-keyword title filter) |
+| `patents_vs_publications_strict.csv`               | Per-company patent count vs. SLR journal publications (298-corpus) |
+| `patents_vs_publications.csv`                      | Loose OR-based CPC magnitude reference |
+| `case_study_patents.csv`                           | Targeted inventor probes for named shortlist papers |
 
 ## Classification labels
 
