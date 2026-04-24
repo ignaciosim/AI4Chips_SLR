@@ -53,12 +53,82 @@ All three maintained parallel copies of overlapping vocabulary. If you added a n
 
 `slr_ontology.py` defines every term exactly once. The fetcher reads its query vocabulary from the ontology. The classifier reads its entity lexicon from the ontology. If you add "diffusion model" as an AI method, you add it in one place and it propagates to both Scopus queries and paper classification.
 
-## Usage
+## Runbook (one-command pipeline)
+
+From a fresh clone, the whole Scopus pipeline is a `make` away. The
+Makefile encodes the stage order, tracks output timestamps (so re-runs
+skip fresh stages), and scopes all outputs to a per-run data directory.
+
+```bash
+# 0. Install pinned dependencies into a virtualenv.
+make setup
+source .venv/bin/activate
+
+# 1. Verify credentials and dependencies before spending hours on fetch.
+make preflight
+
+# 2. Run the whole Scopus pipeline end-to-end into a new data directory.
+make all DATADIR=scopus_out11
+
+# 3. Optional companion analyses.
+make analysis DATADIR=scopus_out11          # text-output analyses
+make patents  DATADIR=scopus_out11          # patent-landscape (BigQuery)
+```
+
+`make all` runs `fetch → merge → classify → final → shortlist → figures`
+in order. Outputs accumulate inside `scopus_out11/`; the master figures
+land in `scopus_out11/figures/`. Running `make all` a second time is a
+no-op (the Makefile tracks output file timestamps), so you can safely
+re-run to check status.
+
+### Prerequisites
+
+The `make setup` step installs every Python dependency; you only need
+two external credentials:
+
+| Credential | Needed for | How to provide |
+|---|---|---|
+| Scopus API key | `make fetch`, `make all` | `../config.json` with `{"scopus_api_key": "..."}` (override path with `CONFIG=`) |
+| Google Cloud auth | `make patents` (optional) | `gcloud auth application-default login` — sets up BigQuery client |
+
+The `make preflight` target sanity-checks both before running anything.
+
+### Overridable Makefile variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `DATADIR` | `scopus_out10` | Per-run data / output directory |
+| `CONFIG` | `../config.json` | Scopus API config |
+| `VENUES` | `../venues_eda.txt` | Venue allow-list |
+| `START_YEAR` | `2015` | Retrieval window start |
+| `END_YEAR` | `2026` | Retrieval window end |
+| `MAX_PAGES` | `80` | Scopus pagination cap per phase |
+| `GCP_PROJECT` | *(auto-detect)* | GCP project for BigQuery |
+
+All are passed on the command line, e.g.:
+`make all DATADIR=scopus_out11 START_YEAR=2018 END_YEAR=2025`.
+
+### Housekeeping
+
+`make clean DATADIR=scopus_out11` removes derived outputs but preserves the
+raw Scopus fetch (which is expensive to regenerate). `make nuke` removes
+the entire per-run directory. `make -n all` prints the command chain as a
+dry run without executing.
+
+### Known failure modes
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| `fetch_scopus.py` stalls at ~25 records | Scopus API rate limit | Re-run; the script resumes from the next page. Reduce `--max_pages` if needed. |
+| `analysis/patent_analysis.py` raises `DefaultCredentialsError` | BigQuery auth missing | `gcloud auth application-default login`, then re-run `make patents`. |
+| Figures missing citation counts | OpenAlex cache empty or stale | First run `python3 figures/fig_linguistic_terms.py` to warm the cache (standalone; not in `make all`). |
+
+## Usage (individual scripts — low-level)
 
 ### Prerequisites
 
 ```bash
-pip install requests pandas
+pip install -r requirements.txt
 ```
 
 ### Step 1: Fetch from Scopus

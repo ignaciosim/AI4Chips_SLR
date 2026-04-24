@@ -1,0 +1,20 @@
+# SLR pipeline dependencies — pinned for reproducibility.
+#
+# Core pipeline (fetch / merge / classify / final / shortlist / figures):
+numpy==2.2.6
+pandas==2.3.3
+matplotlib==3.10.8
+scipy==1.15.3
+requests==2.33.0
+networkx==3.4.2
+python-dateutil==2.9.0.post0
+tqdm==4.67.3
+
+# Patent-landscape companion (analysis/patent_analysis.py), BigQuery:
+google-cloud-bigquery==3.41.0
+google-auth==2.49.1
+db-dtypes==1.5.1
+pyarrow==23.0.1
+
+# Indirect but version-sensitive:
+urllib3==1.26.5
