@@ -175,23 +175,61 @@ Output: `scopus_out11/raw_scopus_{design,fabrication,packaging,transit,in_field,
 ### Step 2: Merge and deduplicate
 
 ```bash
-python merge_scopus.py scopus_out
+python merge_scopus.py scopus_out11/
 ```
 
-Output: `scopus_out/raw_scopus_all.csv`
+Output: `scopus_out11/raw_scopus_all.{csv,jsonl}` (deduplicated union
+of the six per-phase files from Step 1).
 
 ### Step 3: Classify + tag methods
 
 ```bash
 # From merged CSV (title-only classification)
-python classify_scopus.py scopus_out/raw_scopus_all.csv
+python classify_scopus.py scopus_out11/raw_scopus_all.csv
 
 # From JSONL directory (title + abstract — more accurate if abstracts available)
-python classify_scopus.py scopus_out/ --from_jsonl
+python classify_scopus.py scopus_out11/ --from_jsonl
 
 # Keep deep_learning tag when LLM is also detected
-python classify_scopus.py scopus_out/raw_scopus_all.csv --keep_dl_with_llm
+python classify_scopus.py scopus_out11/raw_scopus_all.csv --keep_dl_with_llm
 ```
+
+Output: `classified_scopus.csv`, `ai_methods_long.csv`, the `pivot_*.csv`
+set, and `classification_summary.txt` — all inside `scopus_out11/`.
+
+### Step 4: Extract the high-confidence AI-for-Chips corpus
+
+```bash
+python create_final_high_confidence_only.py scopus_out11
+```
+
+Reads `classified_scopus.csv` plus the raw JSONL files for affiliation
+metadata, keeps only papers the classifier labelled `ai_for_chips` at
+high confidence, removes the GaN-material false positives (a dedicated
+filter for the "generative adversarial network" vs. "gallium nitride"
+lexical collision), and writes the downstream-ready corpus:
+
+Output: `scopus_out11/final_ai4chips_high_only.{csv,json}` — the input
+for every analysis script, every figure, and the patent-landscape
+companion. Typical size: ~300 papers on the 2015–2026 six-phase retrieval.
+
+### Step 5: Curated per-stage shortlist (surveys + manual FPs removed)
+
+```bash
+python analysis/generate_stage_shortlist.py --datadir scopus_out11
+```
+
+Applies editorial curation on top of Step 4's corpus: removes survey /
+review / tutorial papers by title keyword, excludes manually-flagged
+false positives and chips-for-AI entries (via `EXCLUDE_DOIS` in the
+script), applies cross-lifecycle stage reassignments, and emits per-phase
+shortlist tables scored by a blended ranking (top-cited anchors +
+method-and-task-diverse exemplars + high-cites-per-year recent papers +
+2026 papers regardless of citation count + editorial promotions).
+
+Output: `scopus_out11/stage_shortlists.csv` — the basis for the paper's
+per-stage shortlist tables (typical size: 53 rows curated from ~298
+post-curation papers).
 
 ### Optional: Export OWL ontology
 
