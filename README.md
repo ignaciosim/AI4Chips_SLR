@@ -1,8 +1,9 @@
-# SLR Pipeline — Ontology-Driven Refactor
+# AI4Chips SLR Pipeline
 
-Systematic Literature Review pipeline for AI applications in chip design.
-All domain vocabulary is defined **once** in `slr_ontology.py` and consumed
-by every downstream script.
+Systematic Literature Review pipeline for AI applications in chip design
+(the AI-for-Chips lifecycle: design, fabrication, packaging, transit,
+in-field, disposal). All domain vocabulary is defined **once** in
+`slr_ontology.py` and consumed by every downstream script.
 
 ## Architecture
 
@@ -49,28 +50,6 @@ slr_ontology.py              ← single source of truth (vocabulary, taxonomy, q
     └── analysis/*.py                        (15+ standalone text-output analyses —
                                               geo, citation, venues, etc.)
 ```
-
-## What changed (old → new)
-
-| Old script                         | New script            | What happened                                                    |
-|------------------------------------|-----------------------|------------------------------------------------------------------|
-| `fetch_scopus_lifecycle_rest.py`   | `fetch_scopus.py`     | STAGES, CHIP_ANCHOR, AI_UMBRELLA moved to `slr_ontology.py`     |
-| `merge_raw_scopus.py`             | `merge_scopus.py`     | Renamed. No logic change (pure plumbing).                        |
-| `post_process_ai_methods.py`      | *(deleted)*           | AI_METHODS taxonomy → `slr_ontology.py`. Pivot logic → `classify_scopus.py` |
-| `ontology_classifier.py`          | `classify_scopus.py`  | Now also handles method tagging + pivot tables. Reads vocabulary from ontology. |
-| *(new)*                            | `slr_ontology.py`     | Single source of truth for all domain knowledge.                 |
-
-### Why the old pipeline had redundancy
-
-1. **`fetch_scopus_lifecycle_rest.py`** had `STAGES`, `CHIP_ANCHOR`, `AI_UMBRELLA` — these are ontological statements about which terms belong to which lifecycle phase and domain.
-2. **`post_process_ai_methods.py`** had `AI_METHODS` — a method taxonomy with surface forms. This duplicated the `AIMethod` class from the ontology classifier.
-3. **`ontology_classifier.py`** had `ONTOLOGY_LEXICON` — which re-encoded all of the above plus HW artifacts and AI workloads.
-
-All three maintained parallel copies of overlapping vocabulary. If you added a new AI method or chip design task, you had to update 2–3 files.
-
-### What the refactor solves
-
-`slr_ontology.py` defines every term exactly once. The fetcher reads its query vocabulary from the ontology. The classifier reads its entity lexicon from the ontology. If you add "diffusion model" as an AI method, you add it in one place and it propagates to both Scopus queries and paper classification.
 
 ## Runbook (one-command pipeline)
 
