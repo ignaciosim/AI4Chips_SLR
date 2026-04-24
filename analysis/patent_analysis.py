@@ -48,8 +48,9 @@ by default and retained only as a magnitude reference; it is not the
 headline number and is not used in the paper paragraph.
 
 The per-company SLR publication counts are computed at runtime from the
-curated 298-paper high-confidence corpus — NOT from the full 5,531-paper
-raw Scopus retrieval — so the patent-to-publication ratios in
+curated high-confidence corpus (`final_ai4chips_high_only.json` with
+surveys and EXCLUDE_DOIS applied) — NOT from the full raw Scopus
+retrieval — so the patent-to-publication ratios in
 `patents_vs_publications_strict.csv` are against the same corpus the paper
 defines as its unit of analysis.
 
@@ -109,12 +110,12 @@ COMPANY_PATTERNS = [
     ("imec",                 r"(?i)\bimec\b"),
 ]
 
-# SLR publication counts are computed at runtime from the curated 298-paper
-# high-confidence AI-for-Chips corpus — NOT from the full 5,531-paper raw
-# Scopus pool. The counting rule is "any author has an affiliation matching
-# the company regex" (standard bibliometric any-country rule applied to
-# affiliations), which matches the convention used in the per-country
-# geography analysis. See compute_publication_counts() below.
+# SLR publication counts are computed at runtime from the curated
+# high-confidence AI-for-Chips corpus — NOT from the full raw Scopus pool.
+# The counting rule is "any author has an affiliation matching the company
+# regex" (standard bibliometric any-country rule applied to affiliations),
+# which matches the convention used in the per-country geography analysis.
+# See compute_publication_counts() below.
 PUBLICATION_COUNTS_FILE = "final_ai4chips_high_only.json"
 
 # CPC-conjunction filter (shared by strict and sensitivity cuts).
@@ -251,11 +252,11 @@ def run_strict_list(client: bigquery.Client, outdir: Path,
 
 
 def compute_publication_counts(outdir: Path) -> dict:
-    """Count papers in the curated 298-paper AI-for-Chips corpus where at
-    least one author has an affiliation matching each company regex.
+    """Count papers in the curated AI-for-Chips corpus where at least one
+    author has an affiliation matching each company regex.
 
     The curated corpus is the high-confidence JSON with surveys and
-    manually-excluded DOIs filtered out — the same 298 papers reported as
+    manually-excluded DOIs filtered out — the same papers reported as
     the SLR's analysed corpus in the paper."""
     import json as _json
     import re as _re

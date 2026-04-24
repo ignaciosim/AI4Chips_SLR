@@ -29,12 +29,12 @@ slr_ontology.py              ← single source of truth (vocabulary, taxonomy, q
     │   create_final_high_confidence_only.py ← step 4: high-confidence AI-for-Chips
     │       │                                   filter + GaN-material FP removal
     │       ▼
-    │   final_ai4chips_high_only.{csv,json}  (high-conf corpus, n ≈ 321)
+    │   final_ai4chips_high_only.{csv,json}  (high-confidence AI-for-Chips corpus)
     │       │
     │       ├── analysis/generate_stage_shortlist.py    ← step 5a: survey + manual-FP
-    │       │           │                                  curation → 298-paper
-    │       │           ▼                                  analysed corpus + per-stage
-    │       │       stage_shortlists.csv                  shortlist tables
+    │       │           │                                  curation → analysed corpus
+    │       │           ▼                                  + per-stage shortlist tables
+    │       │       stage_shortlists.csv
     │       │
     │       ├── figures/generate_all_figures.py        ← step 5b: publication figures
     │       │           │                                  (17-module master runner)
@@ -190,7 +190,8 @@ lexical collision), and writes the downstream-ready corpus:
 
 Output: `scopus_out11/final_ai4chips_high_only.{csv,json}` — the input
 for every analysis script, every figure, and the patent-landscape
-companion. Typical size: ~300 papers on the 2015–2026 six-phase retrieval.
+companion. Corpus size depends on the retrieval window, the venue
+allow-list, and Scopus index state at fetch time.
 
 ### Step 5: Curated per-stage shortlist (surveys + manual FPs removed)
 
@@ -207,8 +208,7 @@ method-and-task-diverse exemplars + high-cites-per-year recent papers +
 2026 papers regardless of citation count + editorial promotions).
 
 Output: `scopus_out11/stage_shortlists.csv` — the basis for the paper's
-per-stage shortlist tables (typical size: 53 rows curated from ~298
-post-curation papers).
+per-stage shortlist tables.
 
 ### Optional: Export OWL ontology
 
@@ -247,13 +247,13 @@ default `scopus_out10/`).
 
 | File | Description |
 |---|---|
-| `final_ai4chips_high_only.{csv,json}` | High-confidence AI-for-Chips corpus, post-GaN-FP filter (n ≈ 321). Source for all downstream analyses and figures. |
+| `final_ai4chips_high_only.{csv,json}` | High-confidence AI-for-Chips corpus, post-GaN-FP filter. Source for all downstream analyses and figures. |
 
 ### Stage 5a — curated shortlist
 
 | File | Description |
 |---|---|
-| `stage_shortlists.csv` | Per-lifecycle-phase curated shortlist tables (n = 298 after survey + manual-FP removal). Basis for the paper's headline tables. |
+| `stage_shortlists.csv` | Per-lifecycle-phase curated shortlist tables (surveys and manual-FP entries removed). Basis for the paper's headline tables. |
 
 ### Stage 5b — figures (in `DATADIR/figures/`)
 
@@ -269,7 +269,7 @@ task combinations, keyword × country, linguistic terms, etc.). See
 |---|---|
 | `patents_strict_list.csv`                          | Per-family audit list of strict AI-for-Chips patents (CPC-conjunction ∧ AI-method title keyword) |
 | `patents_strict_list_chipkw_sensitivity.csv`       | Higher-recall sensitivity cut (chip-keyword title filter) |
-| `patents_vs_publications_strict.csv`               | Per-company patent count vs. SLR journal publications (298-corpus) |
+| `patents_vs_publications_strict.csv`               | Per-company patent count vs. SLR journal publications (counted against the curated corpus) |
 | `patents_vs_publications.csv`                      | Loose OR-based CPC magnitude reference |
 | `case_study_patents.csv`                           | Targeted inventor probes for named shortlist papers |
 

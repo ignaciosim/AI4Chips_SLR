@@ -137,7 +137,7 @@ analysis: $(FINAL_JSON)
 	$(PY) analysis/commercial_application.py  --datadir $(DATADIR)
 
 # ── Patent-landscape companion (branches off; needs GCP auth) ──────────────
-# Reads $(FINAL_JSON) to compute per-company SLR pub counts against the 298
+# Reads $(FINAL_JSON) to compute per-company SLR pub counts against the
 # curated corpus, then queries BigQuery for matching patents.
 $(PATENTS_CSV): $(FINAL_JSON) analysis/patent_analysis.py
 	$(PY) analysis/patent_analysis.py --datadir $(DATADIR) \
