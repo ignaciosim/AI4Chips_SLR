@@ -9,6 +9,8 @@ in-field, disposal). All domain vocabulary is defined **once** in
 
 ```
 slr_ontology.py              ← single source of truth (vocabulary, taxonomy, query builders)
+plot_style.py                ← shared plotting rcParams, palette, and data loaders
+    │                          (imported by every script in figures/ and analysis/)
     │
     ├── fetch_scopus.py                      ← step 1: Scopus API retrieval
     │       │
@@ -66,16 +68,16 @@ source .venv/bin/activate
 make preflight
 
 # 2. Run the whole Scopus pipeline end-to-end into a new data directory.
-make all DATADIR=scopus_out11
+make all DATADIR=scopus_out10
 
 # 3. Optional companion analyses.
-make analysis DATADIR=scopus_out11          # text-output analyses
-make patents  DATADIR=scopus_out11          # patent-landscape (BigQuery)
+make analysis DATADIR=scopus_out10          # text-output analyses
+make patents  DATADIR=scopus_out10          # patent-landscape (BigQuery)
 ```
 
 `make all` runs `fetch → merge → classify → final → shortlist → figures`
-in order. Outputs accumulate inside `scopus_out11/`; the master figures
-land in `scopus_out11/figures/`. Running `make all` a second time is a
+in order. Outputs accumulate inside `scopus_out10/`; the master figures
+land in `scopus_out10/figures/`. Running `make all` a second time is a
 no-op (the Makefile tracks output file timestamps), so you can safely
 re-run to check status.
 
@@ -97,18 +99,18 @@ The `make preflight` target sanity-checks both before running anything.
 |---|---|---|
 | `DATADIR` | `scopus_out10` | Per-run data / output directory |
 | `CONFIG` | `../config.json` | Scopus API config |
-| `VENUES` | `../venues_eda.txt` | Venue allow-list |
+| `VENUES` | `venues_eda.txt` | Venue allow-list |
 | `START_YEAR` | `2015` | Retrieval window start |
 | `END_YEAR` | `2026` | Retrieval window end |
 | `MAX_PAGES` | `80` | Scopus pagination cap per phase |
 | `GCP_PROJECT` | *(auto-detect)* | GCP project for BigQuery |
 
 All are passed on the command line, e.g.:
-`make all DATADIR=scopus_out11 START_YEAR=2018 END_YEAR=2025`.
+`make all DATADIR=scopus_out10 START_YEAR=2018 END_YEAR=2025`.
 
 ### Housekeeping
 
-`make clean DATADIR=scopus_out11` removes derived outputs but preserves the
+`make clean DATADIR=scopus_out10` removes derived outputs but preserves the
 raw Scopus fetch (which is expensive to regenerate). `make nuke` removes
 the entire per-run directory. `make -n all` prints the command chain as a
 dry run without executing.
@@ -138,48 +140,48 @@ pip install -r requirements.txt
 ```bash
 # Basic (all phases, 2015–2026 window as used by the current paper corpus)
 python fetch_scopus.py --config ../config.json \
-    --venues_file ../venues_eda.txt \
+    --venues_file venues_eda.txt \
     --start_year 2015 --end_year 2026 --max_pages 80 \
-    --outdir scopus_out11
+    --outdir scopus_out10
 
 # Narrow window for a quick revision run
 python fetch_scopus.py --config ../config.json \
-    --venues_file ../venues_eda.txt \
+    --venues_file venues_eda.txt \
     --start_year 2019 --end_year 2025 --max_pages 20 \
-    --outdir scopus_out11
+    --outdir scopus_out10
 ```
 
-Output: `scopus_out11/raw_scopus_{design,fabrication,packaging,transit,in_field,disposal}.jsonl`
+Output: `scopus_out10/raw_scopus_{design,fabrication,packaging,transit,in_field,disposal}.jsonl`
 
 ### Step 2: Merge and deduplicate
 
 ```bash
-python merge_scopus.py scopus_out11/
+python merge_scopus.py scopus_out10/
 ```
 
-Output: `scopus_out11/raw_scopus_all.{csv,jsonl}` (deduplicated union
+Output: `scopus_out10/raw_scopus_all.{csv,jsonl}` (deduplicated union
 of the six per-phase files from Step 1).
 
 ### Step 3: Classify + tag methods
 
 ```bash
 # From merged CSV (title-only classification)
-python classify_scopus.py scopus_out11/raw_scopus_all.csv
+python classify_scopus.py scopus_out10/raw_scopus_all.csv
 
 # From JSONL directory (title + abstract — more accurate if abstracts available)
-python classify_scopus.py scopus_out11/ --from_jsonl
+python classify_scopus.py scopus_out10/ --from_jsonl
 
 # Keep deep_learning tag when LLM is also detected
-python classify_scopus.py scopus_out11/raw_scopus_all.csv --keep_dl_with_llm
+python classify_scopus.py scopus_out10/raw_scopus_all.csv --keep_dl_with_llm
 ```
 
 Output: `classified_scopus.csv`, `ai_methods_long.csv`, the `pivot_*.csv`
-set, and `classification_summary.txt` — all inside `scopus_out11/`.
+set, and `classification_summary.txt` — all inside `scopus_out10/`.
 
 ### Step 4: Extract the high-confidence AI-for-Chips corpus
 
 ```bash
-python create_final_high_confidence_only.py scopus_out11
+python create_final_high_confidence_only.py scopus_out10
 ```
 
 Reads `classified_scopus.csv` plus the raw JSONL files for affiliation
@@ -188,7 +190,7 @@ high confidence, removes the GaN-material false positives (a dedicated
 filter for the "generative adversarial network" vs. "gallium nitride"
 lexical collision), and writes the downstream-ready corpus:
 
-Output: `scopus_out11/final_ai4chips_high_only.{csv,json}` — the input
+Output: `scopus_out10/final_ai4chips_high_only.{csv,json}` — the input
 for every analysis script, every figure, and the patent-landscape
 companion. Corpus size depends on the retrieval window, the venue
 allow-list, and Scopus index state at fetch time.
@@ -196,7 +198,7 @@ allow-list, and Scopus index state at fetch time.
 ### Step 5: Curated per-stage shortlist (surveys + manual FPs removed)
 
 ```bash
-python analysis/generate_stage_shortlist.py --datadir scopus_out11
+python analysis/generate_stage_shortlist.py --datadir scopus_out10
 ```
 
 Applies editorial curation on top of Step 4's corpus: removes survey /
@@ -207,7 +209,7 @@ shortlist tables scored by a blended ranking (top-cited anchors +
 method-and-task-diverse exemplars + high-cites-per-year recent papers +
 2026 papers regardless of citation count + editorial promotions).
 
-Output: `scopus_out11/stage_shortlists.csv` — the basis for the paper's
+Output: `scopus_out10/stage_shortlists.csv` — the basis for the paper's
 per-stage shortlist tables.
 
 ### Optional: Export OWL ontology
