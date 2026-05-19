@@ -310,3 +310,13 @@ CHIP_DESIGN_TASKS["emi_analysis"] = OntologyClass(
 ```
 
 Changes propagate to all scripts automatically on next run.
+
+---
+
+## License
+
+Source code in this repository is released under the [MIT License](LICENSE) © 2026 Ignacio Chechile.
+
+The companion dataset — [AI4Chips_SLR_data](https://github.com/ignaciosim/AI4Chips_SLR_data) — is released separately under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) for the curated annotations, with the underlying Scopus records remaining subject to Elsevier's API terms of use.
+
+If you use this pipeline or the resulting corpus in academic work, please cite the accompanying paper (citation forthcoming).
