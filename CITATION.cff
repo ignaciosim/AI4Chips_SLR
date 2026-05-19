@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite both the repository and the accompanying paper."
+type: software
+title: "AI4Chips_SLR: pipeline for the systematic literature review on AI methods across the silicon lifecycle"
+authors:
+  - given-names: Ignacio
+    family-names: Chechile
+    email: ignacio.chechile@aalto.fi
+    affiliation: Aalto University
+    orcid: "https://orcid.org/0009-0003-9124-6902"
+  - given-names: Jan
+    family-names: Akmal
+    email: jan.akmal@aalto.fi
+    affiliation: Aalto University
+    orcid: "https://orcid.org/0000-0002-7452-0485"
+repository-code: "https://github.com/ignaciosim/AI4Chips_SLR"
+license: MIT
+preferred-citation:
+  type: article
+  title: "AI for Chips: A Systematic Review on the Use of AI Methods Across Silicon Lifecycle"
+  year: 2026
+  authors:
+    - given-names: Ignacio
+      family-names: Chechile
+      email: ignacio.chechile@aalto.fi
+      affiliation: Aalto University
+      orcid: "https://orcid.org/0009-0003-9124-6902"
+    - given-names: Jan
+      family-names: Akmal
+      email: jan.akmal@aalto.fi
+      affiliation: Aalto University
+      orcid: "https://orcid.org/0000-0002-7452-0485"
+  notes: "Manuscript in preparation; full bibliographic details forthcoming."
