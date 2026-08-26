@@ -21,7 +21,9 @@ Architecture:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from functools import lru_cache
 from typing import Dict, List, Set
 
 
@@ -640,6 +642,34 @@ CHIPS_FOR_AI_CONFIRM_KEYWORDS = [
 # HELPER: match surface forms against text
 # =============================================================================
 
+# Surface forms are matched on word boundaries, not as raw substrings. Plain
+# substring matching produced systematic false positives on short acronyms
+# embedded in ordinary words -- "rag" in leve/rag/ing and sto/rag/e, "aging" in
+# lever/aging/, "bert" in Hil/bert/-Huang, "gan" in or/gan/ic, "vae" in
+# /VAE/T-STT, "eda" in M/EDA/. Long forms additionally tolerate regular English
+# inflection so that "analog circuit" still matches "analog circuits"; short
+# acronyms take only a plural -s, since allowing arbitrary suffixes would
+# reintroduce collisions (e.g. "gan" matching "gantry").
+_ACRONYM_MAX_LEN = 5
+
+@lru_cache(maxsize=None)
+def _compile_surface_form(form: str) -> "re.Pattern[str]":
+    """Compile one surface form into a boundary-anchored pattern."""
+    f = form.lower().strip()
+
+    # Forms containing characters that are not word/space/hyphen (e.g. "p&r",
+    # "c++") cannot be reliably \b-anchored; match them literally.
+    if not re.match(r"^[a-z0-9][a-z0-9 \-]*$", f):
+        return re.compile(re.escape(f))
+
+    if len(f) <= _ACRONYM_MAX_LEN and " " not in f:
+        return re.compile(r"\b" + re.escape(f) + r"s?\b")
+
+    # Regular inflections, including the adjectival "-al" so that the form
+    # "graph convolution" still matches "graph convolutional network".
+    return re.compile(r"\b" + re.escape(f) + r"(?:s|es|ed|ing|al|als)?\b")
+
+
 def match_ontology_classes(
     text: str,
     class_dict: Dict[str, OntologyClass],
@@ -652,7 +682,7 @@ def match_ontology_classes(
     hits: Dict[str, List[str]] = {}
     for key, cls in class_dict.items():
         for form in cls.surface_forms:
-            if form.lower() in text_lower:
+            if _compile_surface_form(form).search(text_lower):
                 hits.setdefault(key, []).append(form)
                 break  # one match per class is sufficient
     return hits
@@ -679,13 +709,26 @@ def detect_ai_methods(text: str, keep_dl_with_llm: bool = False) -> Set[str]:
 # HELPER: build Scopus query from ontology
 # =============================================================================
 
+# Source-type filters. The review's headline corpus is peer-reviewed journal
+# articles; CONFERENCE_SOURCE_FILTER exists so the same ontology pipeline can be
+# run over conference proceedings as a sensitivity analysis, without changing
+# the definition of the main corpus.
+JOURNAL_SOURCE_FILTER = "SRCTYPE(j) AND DOCTYPE(ar)"
+CONFERENCE_SOURCE_FILTER = "SRCTYPE(p) AND DOCTYPE(cp)"
+
+
 def build_scopus_query(
     stage_key: str,
     year: int,
     ai_focus: bool = False,
     venues: List[str] | None = None,
+    source_filter: str | None = None,
 ) -> str:
-    """Build a Scopus boolean query from ontology-defined vocabulary."""
+    """Build a Scopus boolean query from ontology-defined vocabulary.
+
+    source_filter defaults to JOURNAL_SOURCE_FILTER; pass
+    CONFERENCE_SOURCE_FILTER for the conference sensitivity corpus.
+    """
     phase = PHASES[stage_key]
 
     q = (
@@ -703,7 +746,7 @@ def build_scopus_query(
         )
         q += f" AND ({ors})"
 
-    q += " AND SRCTYPE(j) AND DOCTYPE(ar)"
+    q += f" AND {source_filter or JOURNAL_SOURCE_FILTER}"
     return q
 
 

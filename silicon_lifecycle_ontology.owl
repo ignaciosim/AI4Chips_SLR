@@ -217,8 +217,16 @@
         <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
         <rdfs:label>Packaging &amp; Assembly</rdfs:label>
     </owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#transit">
+        <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
+        <rdfs:label>Transit</rdfs:label>
+    </owl:NamedIndividual>
     <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#in_field">
         <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
         <rdfs:label>In-Field Operation</rdfs:label>
+    </owl:NamedIndividual>
+    <owl:NamedIndividual rdf:about="http://silicon-lifecycle.org/ontology#disposal">
+        <rdf:type rdf:resource="http://silicon-lifecycle.org/ontology#LifecyclePhase" />
+        <rdfs:label>Disposal</rdfs:label>
     </owl:NamedIndividual>
 </rdf:RDF>
