@@ -20,20 +20,24 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import plot_style
 from plot_style import apply_style, save_figure, DOUBLE_COL
 
-# ── Pipeline counts (reflect scopus_out10 state, 2015–2026 window) ────────
-SCOPUS_RECORDS   = 6835   # across 6 phase queries
-DUPLICATES       = 1304
-AFTER_DEDUP      = 5531
-NON_AI4CHIPS     = 3096   # unclassified + chips-for-AI + ambiguous
-CLASSIFIED_AI    = 2435   # ai_for_chips at any confidence
-LOW_MED_CONF     = 2099
-HIGH_CONF_RAW    = 336    # high-confidence ai_for_chips before GaN filter
-GAN_FP_REMOVED   = 15
-AFTER_GAN        = 321    # high-confidence corpus on disk
-SURVEYS_REMOVED  = 4
-MANUAL_FP        = 19     # chips-for-AI / off-topic / algorithmic-not-ML
-FINAL_CORPUS     = 298    # analysed pool post-curation
-SHORTLIST_ROWS   = 53     # anchors + exemplars + recent + newest + curator
+# ── Pipeline counts (reflect scopus_out12 state, 2015–2026 window) ────────
+# 18 queries: 6 lifecycle phases x 3 retrieval passes (one journal, two
+# conference). Journal 6,835 -> 5,531; conference 12,220 -> 9,020.
+SCOPUS_RECORDS   = 19055  # across 18 phase x source-type queries
+EXACT_DUPES      = 4425   # same eid retrieved by more than one query
+EXTENDED_VERSION = 79     # conference paper superseded by a journal extension
+DUPLICATES       = EXACT_DUPES + EXTENDED_VERSION
+AFTER_DEDUP      = 14551
+NON_AI4CHIPS     = 8978   # unclassified 7,824 + ambiguous 821 + c4ai 313 + both 20
+CLASSIFIED_AI    = 5573   # ai_for_chips at any confidence
+LOW_MED_CONF     = 4866
+HIGH_CONF_RAW    = 707    # high-confidence ai_for_chips before GaN filter
+GAN_FP_REMOVED   = 34
+AFTER_GAN        = 673    # high-confidence corpus on disk
+SURVEYS_REMOVED  = 5
+MANUAL_FP        = 8      # chips-for-AI / off-topic / algorithmic-not-ML
+FINAL_CORPUS     = 660    # analysed pool post-curation (264 journal, 396 conf)
+SHORTLIST_ROWS   = 49     # per-stage exemplars pinned in TABLE_DOIS
 
 
 # ── Colour palette (publication-neutral greys + one accent) ──────────────
@@ -85,7 +89,7 @@ def main():
     # Box: Records identified
     y = y_top - box_h
     draw_box(ax, main_x, y, main_w, box_h,
-             f"Records identified from Scopus\n(6 lifecycle-phase queries)\n"
+             f"Records identified from Scopus\n(6 lifecycle phases \u00d7 3 source passes)\n"
              f"n = {SCOPUS_RECORDS:,}",
              MAIN_FILL, MAIN_EDGE, font_weight="bold")
 
@@ -100,9 +104,10 @@ def main():
              f"Records after de-duplication\nn = {AFTER_DEDUP:,}",
              MAIN_FILL, MAIN_EDGE)
     # Exclusion: duplicates
-    draw_box(ax, excl_x, y_dedup + 0.15, excl_w, box_h - 0.3,
-             f"Duplicates removed\nn = {DUPLICATES:,}",
-             EXCL_FILL, EXCL_EDGE)
+    draw_box(ax, excl_x, y_dedup, excl_w, box_h,
+             f"Duplicates removed\n({EXACT_DUPES:,} exact + {EXTENDED_VERSION} "
+             f"extended versions)\nn = {DUPLICATES:,}",
+             EXCL_FILL, EXCL_EDGE, font_size=7)
     draw_arrow(ax, main_x + main_w, y_dedup + box_h / 2,
                excl_x, y_dedup + box_h / 2)
 
@@ -115,10 +120,10 @@ def main():
              f"n = {AFTER_DEDUP:,}",
              MAIN_FILL, MAIN_EDGE)
     # Exclusion: non-AI-for-Chips
-    draw_box(ax, excl_x, y_screen + 0.15, excl_w, box_h - 0.3,
+    draw_box(ax, excl_x, y_screen, excl_w, box_h,
              f"Excluded — not AI-for-Chips\n"
              f"(unclassified, chips-for-AI,\nambiguous)\nn = {NON_AI4CHIPS:,}",
-             EXCL_FILL, EXCL_EDGE)
+             EXCL_FILL, EXCL_EDGE, font_size=7)
     draw_arrow(ax, main_x + main_w, y_screen + box_h / 2,
                excl_x, y_screen + box_h / 2)
 
@@ -134,9 +139,9 @@ def main():
              f"Classified as AI-for-Chips\n(any confidence)\nn = {CLASSIFIED_AI:,}",
              MAIN_FILL, MAIN_EDGE)
     # Exclusion: low/medium confidence
-    draw_box(ax, excl_x, y_elig + 0.15, excl_w, box_h - 0.3,
+    draw_box(ax, excl_x, y_elig, excl_w, box_h,
              f"Excluded — low/medium\nconfidence\nn = {LOW_MED_CONF:,}",
-             EXCL_FILL, EXCL_EDGE)
+             EXCL_FILL, EXCL_EDGE, font_size=7)
     draw_arrow(ax, main_x + main_w, y_elig + box_h / 2,
                excl_x, y_elig + box_h / 2)
 
@@ -148,9 +153,9 @@ def main():
              f"High-confidence AI-for-Chips\n(raw)\nn = {HIGH_CONF_RAW:,}",
              MAIN_FILL, MAIN_EDGE)
     # Exclusion: GaN false positives
-    draw_box(ax, excl_x, y_hc + 0.15, excl_w, box_h - 0.3,
+    draw_box(ax, excl_x, y_hc, excl_w, box_h,
              f"Excluded — GaN material\nfalse positives\nn = {GAN_FP_REMOVED}",
-             EXCL_FILL, EXCL_EDGE)
+             EXCL_FILL, EXCL_EDGE, font_size=7)
     draw_arrow(ax, main_x + main_w, y_hc + box_h / 2,
                excl_x, y_hc + box_h / 2)
 
@@ -162,12 +167,12 @@ def main():
              f"High-confidence corpus\n(after GaN correction)\nn = {AFTER_GAN}",
              MAIN_FILL, MAIN_EDGE)
     # Exclusion: manual curation (combined)
-    draw_box(ax, excl_x, y_gan + 0.15, excl_w, box_h - 0.3,
+    draw_box(ax, excl_x, y_gan, excl_w, box_h,
              f"Excluded by manual curation:\n"
              f"surveys n = {SURVEYS_REMOVED}; manual\n"
              f"false positives n = {MANUAL_FP}\n"
              f"(total n = {SURVEYS_REMOVED + MANUAL_FP})",
-             EXCL_FILL, EXCL_EDGE)
+             EXCL_FILL, EXCL_EDGE, font_size=7)
     draw_arrow(ax, main_x + main_w, y_gan + box_h / 2,
                excl_x, y_gan + box_h / 2)
 
@@ -179,7 +184,7 @@ def main():
     draw_arrow(ax, main_x + main_w / 2, y_gan,
                main_x + main_w / 2, y_final + box_h)
     draw_box(ax, main_x, y_final, main_w, box_h,
-             f"Included for synthesis\n(full analysed corpus)\nn = {FINAL_CORPUS}",
+             f"Included for synthesis\n(264 journal, 396 conference)\nn = {FINAL_CORPUS}",
              INCL_FILL, INCL_EDGE, font_weight="bold")
 
     # Final: shortlist displayed in paper
