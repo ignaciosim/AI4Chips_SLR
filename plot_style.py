@@ -23,7 +23,11 @@ from matplotlib.ticker import MaxNLocator
 # ── Paths ────────────────────────────────────────────────────────────────────
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(SCRIPT_DIR, "scopus_out7")
+# Fallback only. Every entry point should pass --datadir (the Makefile does),
+# and set_data_dir() below is the override hook. "corpus" is the directory
+# name used by the published dataset repository, so a bare run against a
+# fresh clone resolves rather than silently reading a stale local run.
+DATA_DIR = os.path.join(SCRIPT_DIR, os.environ.get("SLR_DATADIR", "corpus"))
 BASE_DIR = DATA_DIR  # compatibility alias
 CSV_PATH = os.path.join(DATA_DIR, "final_ai4chips_high_only.csv")
 JSON_PATH = os.path.join(DATA_DIR, "final_ai4chips_high_only.json")

@@ -10,9 +10,10 @@
 #   make nuke                         # remove EVERYTHING including raw fetch
 #
 # Overridable variables:
-#   DATADIR       — per-run data/output directory (default: scopus_out10)
+#   DATADIR       — per-run data/output directory (default: corpus, the name
+#                   used by the published dataset repository)
 #   CONFIG        — Scopus API config JSON (default: ../config.json)
-#   VENUES        — venue allow-list (default: ../venues_eda.txt)
+#   VENUES        — venue allow-list (default: venues_eda.txt, in this repo)
 #   START_YEAR    — retrieval window start (default: 2015)
 #   END_YEAR      — retrieval window end  (default: 2026)
 #   MAX_PAGES     — Scopus pagination cap (default: 80)
@@ -20,9 +21,9 @@
 
 PY              ?= python3
 VENV            ?= .venv
-DATADIR         ?= scopus_out10
+DATADIR         ?= corpus
 CONFIG          ?= ../config.json
-VENUES          ?= ../venues_eda.txt
+VENUES          ?= venues_eda.txt
 START_YEAR      ?= 2015
 END_YEAR        ?= 2026
 MAX_PAGES       ?= 80
@@ -36,7 +37,7 @@ FIGURES_STAMP   := $(DATADIR)/figures/.figures.stamp
 PATENTS_CSV     := $(DATADIR)/patents_vs_publications_strict.csv
 
 .PHONY: all setup preflight fetch merge classify final shortlist figures \
-        analysis patents clean nuke help
+        analysis patents clean nuke help refetch
 
 help:
 	@echo "SLR pipeline targets:"
@@ -83,9 +84,19 @@ preflight:
 	@echo "Preflight passed."
 
 # ── Stage 1: Scopus fetch (expensive; hours) + merge/dedup ──────────────────
-# Depends on ontology, fetch/merge code, and the venues allow-list.
-# Guarded by $(RAW_MERGED) timestamp so re-running is a no-op when fresh.
-$(RAW_MERGED): fetch_scopus.py merge_scopus.py slr_ontology.py $(VENUES) $(CONFIG)
+# Prerequisites are ORDER-ONLY (the `|`). Retrieval takes hours and needs API
+# credentials, so it must never be triggered by a source-file timestamp -- and
+# a fresh `git clone` stamps every file with the checkout time, which would
+# otherwise make this rule fire against a corpus that is already present and
+# correct. If $(RAW_MERGED) exists, this stage is skipped. Use `make refetch`
+# to force retrieval.
+$(RAW_MERGED): | fetch_scopus.py merge_scopus.py slr_ontology.py $(VENUES)
+	@test -f $(CONFIG) || (echo "" && \
+	  echo "  Scopus retrieval needs API credentials in $(CONFIG):" && \
+	  echo '      { "apikey": "YOUR_KEY" }' && \
+	  echo "  If you are reproducing published results, you do not need this:" && \
+	  echo "  point DATADIR at the released corpus instead, e.g." && \
+	  echo "      make figures DATADIR=corpus" && echo "" && exit 1)
 	@mkdir -p $(DATADIR)
 	$(PY) fetch_scopus.py \
 	    --config      $(CONFIG) \
@@ -97,6 +108,12 @@ $(RAW_MERGED): fetch_scopus.py merge_scopus.py slr_ontology.py $(VENUES) $(CONFI
 	$(PY) merge_scopus.py $(DATADIR)/
 
 fetch merge: $(RAW_MERGED)
+
+# Force a fresh retrieval; the rule above deliberately will not fire on its own.
+.PHONY: refetch
+refetch:
+	rm -f $(RAW_MERGED)
+	$(MAKE) $(RAW_MERGED)
 
 # ── Stage 2: ontology-based classification + pivot tables ──────────────────
 $(CLASSIFIED): $(RAW_MERGED) classify_scopus.py slr_ontology.py
