@@ -11,6 +11,7 @@ Usage:
     python3 analysis/generate_stage_shortlist.py --datadir scopus_out10 \\
         --out scopus_out10/stage_shortlists.md
 """
+import re as _re_survey
 import argparse
 import json
 from collections import defaultdict
@@ -19,7 +20,38 @@ from pathlib import Path
 YEAR_MAX = 2026  # shortlist is a curation aid, not a public figure
 CURRENT_YEAR = 2026  # for cites/year normalization
 
+# Survey / review detection.
+#
+# Plain substring matching on ["survey", "review", ...] produced false
+# positives on titles where the word is part of a method or instrument name --
+# "Review-SEM" (a defect-review scanning electron microscope) and "A
+# Self-Review Bayesian Optimization Method" were both classified as surveys.
+# Word boundaries alone do not help, because the hyphen is itself a boundary.
+# We therefore match the PHRASES in which a genuine survey announces itself.
+SURVEY_QUALIFIER = (r"(?:comprehensive|systematic|brief|short|critical|recent|"
+                    r"literature|extensive|concise)\s+")
+SURVEY_PATTERNS = [
+    rf"\ba\s+(?:{SURVEY_QUALIFIER})?survey\b",
+    r"\bsurvey\s+(?:of|on|for)\b",
+    rf"\ba\s+(?:{SURVEY_QUALIFIER})?review\b",
+    r"\breview\s+(?:of|on)\b",
+    r"\ban?\s+overview\s+(?:of|on)\b",
+    r"\boverview\s+(?:of|on)\b",
+    r"\ba\s+tutorial\b|\btutorial\s+(?:on|for)\b",
+    r"\ba\s+taxonomy\b|\btaxonomy\s+(?:of|for)\b",
+    r"\bstate[- ]of[- ]the[- ]art\s+(?:review|survey)\b",
+    r"\bsystematic\s+literature\s+review\b",
+]
+_SURVEY_RX = [_re_survey.compile(p, _re_survey.I) for p in SURVEY_PATTERNS]
+# Retained for reference; no longer used for matching.
 SURVEY_KW = ["survey", "review", "overview", "tutorial", "taxonomy"]
+
+
+def is_survey_title(title):
+    """True when the title announces itself as a survey/review/tutorial."""
+    t = title or ""
+    return any(rx.search(t) for rx in _SURVEY_RX)
+
 
 # ── Analog / digital classification (mirrored from plot_style.py to avoid the
 #    matplotlib import). Used for the Design stage balance rule.
@@ -132,7 +164,7 @@ EXCLUDE_DOIS = {
 
 def is_survey(paper):
     title = (paper.get("title") or "").lower()
-    return any(k in title for k in SURVEY_KW)
+    return is_survey_title(title)
 
 
 def is_excluded(paper):
@@ -147,7 +179,8 @@ STAGE_OVERRIDES = {
     # Narwariya 2025: detecting recycled ICs re-entering the supply chain is
     # a transit / supply-chain integrity problem (cousin of counterfeit
     # detection), not an end-of-life disposal concern.
-    "10.1109/tvlsi.2025.3590317": "transit",
+    # "10.1109/tvlsi.2025.3590317": "transit",  # retired: paper no longer
+    #   satisfies the inclusion criteria after the matcher correction
     # Lee H. 2026 DRAM sense-amp UQ: this is chip *design* (BLSA circuit
     # sizing under process variation), not fabrication. Classified into
     # fabrication by a "process variation" keyword match.
@@ -171,6 +204,79 @@ STAGE_OVERRIDES = {
 def effective_stage(paper):
     doi = (paper.get("doi") or "").lower()
     return STAGE_OVERRIDES.get(doi, paper["stage"])
+
+
+TABLE_DOIS = {
+    # Pinned per-stage exemplar selection as printed in the manuscript.
+    # Selected once from the candidate ranking below (Anchor/Exemplar/
+    # Recent/Newest with per-stage quotas) and retained across revisions so
+    # that this script reproduces the published tables exactly. Stages here
+    # are post-STAGE_OVERRIDES, matching how the script groups papers.
+    # Three v1 entries were removed because they no longer satisfy the
+    # inclusion criteria after the matcher and deduplication corrections:
+    #   10.1145/3626958                 RSMT construction (combinatorial, not ML)
+    #   10.1016/j.microrel.2022.114553  BGA drop response (no chip-task term)
+    #   10.1109/tvlsi.2025.3590317      IO pad / polynomial regression (no method term)
+    "design": [   # 15 entries
+        "10.1109/tcad.2022.3193330",                    # [39] A New Compact MOSFET Model Based on Artificial Neural Networ
+        "10.1109/tcad.2022.3166637",                    # [37] An Analog Circuit Design and Optimization System With Rule-G
+        "10.1109/tcad.2019.2961322",                    # [24] An Artificial Neural Network Assisted Optimization System fo
+        "10.1109/tcad.2021.3081405",                    # [25] An Efficient Analog Circuit Sizing Method Based on Machine L
+        "10.1109/tcad.2021.3054811",                    # [26] An Efficient Batch-Constrained Bayesian Optimization Approac
+        "10.1109/tcad.2025.3582175",                    # [28] AnaCraft: Duel-Play Probabilistic-Model-Based Reinforcement 
+        "10.1109/tcad.2025.3573228",                    # [32] Atelier: An Automated Analog Circuit Design Framework via Mu
+        "10.1109/tcad.2021.3120547",                    # [27] Automated Design of Analog Circuits Using Reinforcement Lear
+        "10.1109/tcad.2024.3383347",                    # [30] ChatEDA: A Large Language Model Powered Autonomous Agent for
+        "10.1109/tvlsi.2021.3065639",                   # [36] Complementary-FET (CFET) Standard Cell Synthesis Framework f
+        "10.1109/tcad.2020.3003843",                    # [33] DREAMPlace: Deep Learning Toolkit-Enabled GPU Acceleration f
+        "10.1109/tcad.2021.3131550",                    # [34] GoodFloorplan: Graph Convolutional Network and Reinforcement
+        "10.1109/tcad.2022.3185540",                    # [35] IronMan-Pro: Multiobjective Design Space Exploration in HLS 
+        "10.1109/tcad.2025.3529805",                    # [31] LayoutCopilot: An LLM-Powered Multiagent Collaborative Frame
+        "10.1145/3643681",                              # [29] VeriGen: A Large Language Model for Verilog Code Generation
+    ],
+    "fabrication": [   # 11 entries
+        "10.1109/tcad.2015.2501307",                    # [47] A SVM surrogate model-based method for parametric yield opti
+        "10.1109/tsm.2019.2945482",                     # [46] A wafer map yield prediction based on machine learning for p
+        "10.1109/tsm.2021.3118922",                     # [45] Applying Data Augmentation and Mask R-CNN-Based Instance Seg
+        "10.1016/j.jii.2025.100879",                    # [48] Deriving optimal atomic layer deposition process conditions 
+        "10.1109/tcad.2023.3286262",                    # [43] DevelSet: Deep Neural Level Set for Instant Mask Optimizatio
+        "10.1109/tcad.2019.2939329",                    # [41] GAN-OPC: Mask Optimization with Lithography-Guided Generativ
+        "10.1109/tcad.2025.3650094",                    # [44] INN-ILT: Inverse Lithography Technique via Invertible Neural
+        "10.1016/j.mejo.2022.105641",                   # [50] Linear regression combined KNN algorithm to identify latent 
+        "10.1109/tsm.2021.3065405",                     # [49] Machine Learning-Based Detection Method for Wafer Test Induc
+        "10.1109/tcad.2021.3109556",                    # [42] Neural-ILT 2.0: Migrating ILT to Domain-Specific and Multita
+        "10.1109/tcad.2026.3661446",                    # [40] Understanding and Mitigating Errors of LLM-Generated RTL Cod
+    ],
+    "packaging": [   # 8 entries
+        "10.1109/tcad.2025.3543436",                    # [58] A Lightweight Heterogeneous Graph Embedding Framework for Ho
+        "10.1109/tvlsi.2025.3650633",                   # [57] A Physics-Informed Neural Network Surrogate for Runtime PDN 
+        "10.1109/tsm.2023.3243775",                     # [51] Deep Learning-Based Positioning Error Fault Diagnosis of Wir
+        "10.1016/j.vlsi.2014.06.003",                   # [52] Energy efficient adaptive clustering of on-chip power delive
+        "10.1016/j.mejo.2022.105535",                   # [53] Frequency-scaled thermal-aware test scheduling for 3D ICs us
+        "10.1145/3588570",                              # [55] GNN-based Multi-bit Flip-flop Clustering and Post-clustering
+        "10.1145/3579843",                              # [56] ILP-based Substrate Routing with Mismatched Via Dimension Co
+        "10.1109/tcad.2019.2950378",                    # [73] Robust Identification of Thermal Models for In-Production Hi
+    ],
+    "transit": [   # 7 entries
+        "10.1016/j.vlsi.2025.102628",                   # [67] AI-enabled image processing approach for efficient clusterin
+        "10.1109/tvlsi.2019.2949733",                   # [64] EMFORCED: EM-Based Fingerprinting Framework for Remarked and
+        "10.1109/tcad.2024.3428469",                    # [63] GNN4HT: A Two-Stage GNN-Based Approach for Hardware Trojan M
+        "10.1109/tvlsi.2022.3191683",                   # [59] Golden Reference-Free Hardware Trojan Localization Using Gra
+        "10.1109/tcad.2022.3178355",                    # [60] Hardware Trojan Detection Using Graph Neural Networks
+        "10.1109/tcad.2025.3569492",                    # [61] NetVGE: Netwise Hardware Trojan Detection at RTL Using Varia
+        "10.1109/tcad.2024.3383348",                    # [62] Netwise Detection of Hardware Trojans Using Scalable Convolu
+    ],
+    "in_field": [   # 8 entries
+        "10.1145/3567424",                              # [74] A Deep Learning Framework for Solving Stress-based Partial D
+        "10.1109/tvlsi.2023.3237885",                   # [71] A Framework for Reliability Analysis of Combinational Circui
+        "10.1109/tvlsi.2019.2925807",                   # [72] Hardware Trojan Detection Using Changepoint-Based Anomaly De
+        "10.1016/j.mejo.2026.107133",                   # [75] Hybrid junction temperature prediction of IGBTs combining de
+        "10.1016/j.microrel.2025.115996",               # [69] Neural network approach to NBTI/HCD coupled failure analysis
+        "10.1109/tvlsi.2016.2593902",                   # [70] Postsilicon Trace Signal Selection Using Machine Learning Te
+        "10.1016/j.microrel.2025.115797",               # [68] Solder joint reliability predictions using physics-informed 
+        "10.1145/3564932",                              # [38] Worst-case Power Integrity Prediction Using Convolutional Ne
+    ],
+}
 
 
 # Manual editorial promotions — force a paper into the shortlist for topical
@@ -390,6 +496,9 @@ def targets_for_size(n, stage=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--datadir", default="scopus_out10")
+    ap.add_argument("--show-candidates", action="store_true",
+                    help="Emit the algorithmic candidate ranking instead of "
+                         "the pinned manuscript selection.")
     ap.add_argument("--out", default=None,
                     help="Markdown output path. If omitted, prints to stdout.")
     args = ap.parse_args()
@@ -442,7 +551,22 @@ def main():
         lines.append("| Role | Year | 1st author | Method | Task | Cites | Title | Gist | DOI |")
         lines.append("|---|---|---|---|---|---|---|---|---|")
 
-        if n < 10:
+        pinned = [] if args.show_candidates else (TABLE_DOIS.get(stage) or [])
+        if pinned:
+            # Emit the pinned manuscript selection. The algorithmic ranking is
+            # still what the selection was drawn from and remains available via
+            # --show-candidates; pinning keeps this script an exact record of
+            # the published tables rather than a generator of a different set.
+            index = {(p.get("doi") or "").lower(): p for p in ps}
+            missing = [d for d in pinned if d not in index]
+            for d in pinned:
+                p = index.get(d)
+                if p is not None:
+                    lines.append(format_row(p, "Table", gists))
+            if missing:
+                print(f"  WARNING [{stage}]: {len(missing)} pinned DOI(s) not in "
+                      f"the corpus for this stage: {missing}")
+        elif n < 10:
             for p in sorted(ps, key=cites, reverse=True):
                 lines.append(format_row(p, "All", gists))
         else:

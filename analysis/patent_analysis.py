@@ -263,17 +263,19 @@ def compute_publication_counts(outdir: Path) -> dict:
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent))
     try:
-        from generate_stage_shortlist import EXCLUDE_DOIS, SURVEY_KW
+        from generate_stage_shortlist import EXCLUDE_DOIS, is_survey_title
     except ImportError:
         EXCLUDE_DOIS = set()
-        SURVEY_KW = ["survey", "review", "overview", "tutorial", "taxonomy"]
+
+        def is_survey_title(t):        # conservative fallback
+            return False
 
     src = outdir / PUBLICATION_COUNTS_FILE
     papers = _json.loads(src.read_text())
 
     def _is_survey(t: str) -> bool:
         tl = (t or "").lower()
-        return any(k in tl for k in SURVEY_KW)
+        return is_survey_title(t)
 
     curated = [p for p in papers
                if not _is_survey(p.get("title", ""))
