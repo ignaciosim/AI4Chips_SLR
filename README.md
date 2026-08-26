@@ -53,6 +53,37 @@ plot_style.py                ← shared plotting rcParams, palette, and data loa
                                               geo, citation, venues, etc.)
 ```
 
+## Reproducing the published results
+
+You do **not** need Scopus credentials to reproduce anything in the paper. Clone
+the dataset repository alongside this one and point `DATADIR` at it:
+
+```bash
+git clone https://github.com/ignaciosim/AI4Chips_SLR.git
+git clone https://github.com/ignaciosim/AI4Chips_SLR_data.git
+cd AI4Chips_SLR
+ln -s ../AI4Chips_SLR_data/corpus corpus
+
+make figures      # 21 figure scripts -> corpus/figures/*.png
+make analysis     # text analyses to stdout
+```
+
+`DATADIR` defaults to `corpus`, so no argument is needed. The Scopus retrieval
+stage will not fire when the corpus is already present — its prerequisites are
+order-only precisely so that a fresh clone cannot trigger a multi-hour re-fetch.
+Use `make refetch` if you actually want to re-retrieve.
+
+`make patents` is the exception: it queries BigQuery and needs Google Cloud
+credentials. The patent artefacts it would produce are already in the dataset
+repository.
+
+> **Run scripts through the Makefile, or pass `--datadir` explicitly.** Many
+> scripts under `analysis/` carry a hard-coded default data directory from the
+> run they were written against. Invoked bare they will read the wrong corpus,
+> or fail if that directory is absent. The Makefile always passes `--datadir`.
+
+---
+
 ## Runbook (one-command pipeline)
 
 From a fresh clone, the whole Scopus pipeline is a `make` away. The
@@ -68,16 +99,16 @@ source .venv/bin/activate
 make preflight
 
 # 2. Run the whole Scopus pipeline end-to-end into a new data directory.
-make all DATADIR=scopus_out10
+make all DATADIR=corpus
 
 # 3. Optional companion analyses.
-make analysis DATADIR=scopus_out10          # text-output analyses
-make patents  DATADIR=scopus_out10          # patent-landscape (BigQuery)
+make analysis DATADIR=corpus          # text-output analyses
+make patents  DATADIR=corpus          # patent-landscape (BigQuery)
 ```
 
 `make all` runs `fetch → merge → classify → final → shortlist → figures`
-in order. Outputs accumulate inside `scopus_out10/`; the master figures
-land in `scopus_out10/figures/`. Running `make all` a second time is a
+in order. Outputs accumulate inside `corpus/`; the master figures
+land in `corpus/figures/`. Running `make all` a second time is a
 no-op (the Makefile tracks output file timestamps), so you can safely
 re-run to check status.
 
@@ -97,7 +128,7 @@ The `make preflight` target sanity-checks both before running anything.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `DATADIR` | `scopus_out10` | Per-run data / output directory |
+| `DATADIR` | `corpus` | Per-run data / output directory. `corpus` is the directory name used by the published dataset repo; pass your own run directory (e.g. `scopus_out13`) for a new pipeline run. |
 | `CONFIG` | `../config.json` | Scopus API config |
 | `VENUES` | `venues_eda.txt` | Venue allow-list |
 | `START_YEAR` | `2015` | Retrieval window start |
@@ -106,11 +137,11 @@ The `make preflight` target sanity-checks both before running anything.
 | `GCP_PROJECT` | *(auto-detect)* | GCP project for BigQuery |
 
 All are passed on the command line, e.g.:
-`make all DATADIR=scopus_out10 START_YEAR=2018 END_YEAR=2025`.
+`make all DATADIR=corpus START_YEAR=2018 END_YEAR=2025`.
 
 ### Housekeeping
 
-`make clean DATADIR=scopus_out10` removes derived outputs but preserves the
+`make clean DATADIR=corpus` removes derived outputs but preserves the
 raw Scopus fetch (which is expensive to regenerate). `make nuke` removes
 the entire per-run directory. `make -n all` prints the command chain as a
 dry run without executing.
@@ -142,46 +173,46 @@ pip install -r requirements.txt
 python fetch_scopus.py --config ../config.json \
     --venues_file venues_eda.txt \
     --start_year 2015 --end_year 2026 --max_pages 80 \
-    --outdir scopus_out10
+    --outdir corpus
 
 # Narrow window for a quick revision run
 python fetch_scopus.py --config ../config.json \
     --venues_file venues_eda.txt \
     --start_year 2019 --end_year 2025 --max_pages 20 \
-    --outdir scopus_out10
+    --outdir corpus
 ```
 
-Output: `scopus_out10/raw_scopus_{design,fabrication,packaging,transit,in_field,disposal}.jsonl`
+Output: `corpus/raw_scopus_{design,fabrication,packaging,transit,in_field,disposal}.jsonl`
 
 ### Step 2: Merge and deduplicate
 
 ```bash
-python merge_scopus.py scopus_out10/
+python merge_scopus.py corpus/
 ```
 
-Output: `scopus_out10/raw_scopus_all.{csv,jsonl}` (deduplicated union
+Output: `corpus/raw_scopus_all.{csv,jsonl}` (deduplicated union
 of the six per-phase files from Step 1).
 
 ### Step 3: Classify + tag methods
 
 ```bash
 # From merged CSV (title-only classification)
-python classify_scopus.py scopus_out10/raw_scopus_all.csv
+python classify_scopus.py corpus/raw_scopus_all.csv
 
 # From JSONL directory (title + abstract — more accurate if abstracts available)
-python classify_scopus.py scopus_out10/ --from_jsonl
+python classify_scopus.py corpus/ --from_jsonl
 
 # Keep deep_learning tag when LLM is also detected
-python classify_scopus.py scopus_out10/raw_scopus_all.csv --keep_dl_with_llm
+python classify_scopus.py corpus/raw_scopus_all.csv --keep_dl_with_llm
 ```
 
 Output: `classified_scopus.csv`, `ai_methods_long.csv`, the `pivot_*.csv`
-set, and `classification_summary.txt` — all inside `scopus_out10/`.
+set, and `classification_summary.txt` — all inside `corpus/`.
 
 ### Step 4: Extract the high-confidence AI-for-Chips corpus
 
 ```bash
-python create_final_high_confidence_only.py scopus_out10
+python create_final_high_confidence_only.py corpus
 ```
 
 Reads `classified_scopus.csv` plus the raw JSONL files for affiliation
@@ -190,7 +221,7 @@ high confidence, removes the GaN-material false positives (a dedicated
 filter for the "generative adversarial network" vs. "gallium nitride"
 lexical collision), and writes the downstream-ready corpus:
 
-Output: `scopus_out10/final_ai4chips_high_only.{csv,json}` — the input
+Output: `corpus/final_ai4chips_high_only.{csv,json}` — the input
 for every analysis script, every figure, and the patent-landscape
 companion. Corpus size depends on the retrieval window, the venue
 allow-list, and Scopus index state at fetch time.
@@ -198,7 +229,7 @@ allow-list, and Scopus index state at fetch time.
 ### Step 5: Curated per-stage shortlist (surveys + manual FPs removed)
 
 ```bash
-python analysis/generate_stage_shortlist.py --datadir scopus_out10
+python analysis/generate_stage_shortlist.py --datadir corpus
 ```
 
 Applies editorial curation on top of Step 4's corpus: removes survey /
@@ -209,7 +240,7 @@ shortlist tables scored by a blended ranking (top-cited anchors +
 method-and-task-diverse exemplars + high-cites-per-year recent papers +
 2026 papers regardless of citation count + editorial promotions).
 
-Output: `scopus_out10/stage_shortlists.csv` — the basis for the paper's
+Output: `corpus/stage_shortlists.csv` — the basis for the paper's
 per-stage shortlist tables.
 
 ### Optional: Export OWL ontology
@@ -222,7 +253,7 @@ python slr_ontology.py
 ## Output files
 
 All paths below are relative to the per-run data directory (`DATADIR`,
-default `scopus_out10/`).
+default `corpus/`).
 
 ### Stage 1–2 — fetch + merge
 
