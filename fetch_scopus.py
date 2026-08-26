@@ -36,10 +36,15 @@ from typing import Dict, List, Tuple
 import pandas as pd
 import requests
 
-from slr_ontology import PHASES, build_scopus_query
+from slr_ontology import (PHASES, build_scopus_query,
+                          JOURNAL_SOURCE_FILTER, CONFERENCE_SOURCE_FILTER)
 
 
 SCOPUS_SEARCH_URL = "https://api.elsevier.com/content/search/scopus"
+
+# Transient-failure retry policy for long retrievals.
+RETRY_ATTEMPTS = 5
+RETRY_BACKOFF_S = 3
 
 
 # -------------------------------------------------------------------
@@ -69,7 +74,34 @@ def scopus_search_page(
         headers["X-ELS-Insttoken"] = cfg["insttoken"]
 
     params = {"query": query, "start": str(start), "count": str(count)}
-    r = requests.get(SCOPUS_SEARCH_URL, headers=headers, params=params, timeout=60)
+
+    # Retry transient failures. A dropped connection or a 429/5xx part-way
+    # through a multi-hour retrieval would otherwise abort the whole run and
+    # discard every stage not yet written.
+    last_exc = None
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            r = requests.get(SCOPUS_SEARCH_URL, headers=headers,
+                             params=params, timeout=60)
+        except requests.exceptions.RequestException as exc:
+            last_exc = exc
+            wait = RETRY_BACKOFF_S * (2 ** attempt)
+            print(f"  [retry {attempt+1}/{RETRY_ATTEMPTS}] network error "
+                  f"({type(exc).__name__}); sleeping {wait}s", flush=True)
+            time.sleep(wait)
+            continue
+
+        if r.status_code in (429, 500, 502, 503, 504):
+            wait = RETRY_BACKOFF_S * (2 ** attempt)
+            print(f"  [retry {attempt+1}/{RETRY_ATTEMPTS}] HTTP "
+                  f"{r.status_code}; sleeping {wait}s", flush=True)
+            time.sleep(wait)
+            last_exc = RuntimeError(f"Scopus HTTP {r.status_code}")
+            continue
+        break
+    else:
+        raise RuntimeError(
+            f"Scopus request failed after {RETRY_ATTEMPTS} attempts: {last_exc}")
 
     if not (200 <= r.status_code < 300):
         txt = (r.text or "")[:1200]
@@ -116,7 +148,14 @@ def main():
                     help="Safety cap per query. Increase when stable.")
     ap.add_argument("--sleep_s", type=float, default=0.35)
     ap.add_argument("--print_queries", action="store_true")
+    ap.add_argument("--conferences", action="store_true",
+                    help="Retrieve conference papers (SRCTYPE(p)/DOCTYPE(cp)) "
+                         "instead of journal articles. Used for the conference "
+                         "sensitivity corpus; does not affect the main corpus.")
     args = ap.parse_args()
+
+    source_filter = (CONFERENCE_SOURCE_FILTER if args.conferences
+                     else JOURNAL_SOURCE_FILTER)
 
     cfg = load_cfg(args.config)
     venues = load_venues(args.venues_file)
@@ -130,7 +169,8 @@ def main():
     failures: List[dict] = []
 
     # Smoke test
-    smoke_q = build_scopus_query("design", end_year, ai_focus=args.ai_focus, venues=venues)
+    smoke_q = build_scopus_query("design", end_year, ai_focus=args.ai_focus, venues=venues,
+                                 source_filter=source_filter)
     total, entries, _ = scopus_search_page(cfg, smoke_q, start=0, count=1)
     print(f"SMOKE OK (design, {end_year}): total={total}")
     if entries:
@@ -151,7 +191,8 @@ def main():
             writer.writeheader()
 
             for year in range(args.start_year, end_year + 1):
-                q = build_scopus_query(phase_key, year, ai_focus=args.ai_focus, venues=venues)
+                q = build_scopus_query(phase_key, year, ai_focus=args.ai_focus,
+                                       venues=venues, source_filter=source_filter)
                 if args.print_queries:
                     print(f"QUERY [{phase_key} {year}]: {q}")
 
