@@ -1,5 +1,6 @@
 """Figure: citation distribution comparison — AI4chips vs full corpus."""
 
+import re as _re_survey
 import sys, os, json
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 
@@ -10,7 +11,38 @@ from plot_style import (apply_style, save_figure, format_axes,
                         SINGLE_COL, COLORS, is_survey,
                         load_json_papers, load_jsonl_papers)
 
+# Survey / review detection.
+#
+# Plain substring matching on ["survey", "review", ...] produced false
+# positives on titles where the word is part of a method or instrument name --
+# "Review-SEM" (a defect-review scanning electron microscope) and "A
+# Self-Review Bayesian Optimization Method" were both classified as surveys.
+# Word boundaries alone do not help, because the hyphen is itself a boundary.
+# We therefore match the PHRASES in which a genuine survey announces itself.
+SURVEY_QUALIFIER = (r"(?:comprehensive|systematic|brief|short|critical|recent|"
+                    r"literature|extensive|concise)\s+")
+SURVEY_PATTERNS = [
+    rf"\ba\s+(?:{SURVEY_QUALIFIER})?survey\b",
+    r"\bsurvey\s+(?:of|on|for)\b",
+    rf"\ba\s+(?:{SURVEY_QUALIFIER})?review\b",
+    r"\breview\s+(?:of|on)\b",
+    r"\ban?\s+overview\s+(?:of|on)\b",
+    r"\boverview\s+(?:of|on)\b",
+    r"\ba\s+tutorial\b|\btutorial\s+(?:on|for)\b",
+    r"\ba\s+taxonomy\b|\btaxonomy\s+(?:of|for)\b",
+    r"\bstate[- ]of[- ]the[- ]art\s+(?:review|survey)\b",
+    r"\bsystematic\s+literature\s+review\b",
+]
+_SURVEY_RX = [_re_survey.compile(p, _re_survey.I) for p in SURVEY_PATTERNS]
+# Retained for reference; no longer used for matching.
 SURVEY_KW = ["survey", "review", "overview", "tutorial", "taxonomy"]
+
+
+def is_survey_title(title):
+    """True when the title announces itself as a survey/review/tutorial."""
+    t = title or ""
+    return any(rx.search(t) for rx in _SURVEY_RX)
+
 
 
 def main():
@@ -26,7 +58,7 @@ def main():
     for rec in load_jsonl_papers():
         entry = rec.get("entry", {})
         title = entry.get("dc:title", "")
-        if any(kw in title.lower() for kw in SURVEY_KW):
+        if is_survey_title(title):
             continue
         full.append(int(entry.get("citedby-count") or 0))
     full.sort()
