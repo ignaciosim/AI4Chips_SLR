@@ -13,9 +13,13 @@ import plot_style
 from plot_style import apply_style, save_figure, format_axes, SINGLE_COL, COLORS
 
 # ── paths ────────────────────────────────────────────────────────────────
+# NOTE: do NOT call set_data_dir() at import time. plot_style holds the data
+# directory in module-level globals, so an import-time override leaks into
+# every figure module the master runner imports afterwards, silently sending
+# their output to the wrong run directory. The default is applied only when
+# this script is executed standalone (see __main__ below).
 from pathlib import Path
-DATA = Path(__file__).resolve().parent.parent / "scopus_out10"
-plot_style.set_data_dir(str(DATA))
+DEFAULT_DATA = Path(__file__).resolve().parent.parent / "scopus_out10"
 
 
 def exp_model(t, a, b):
@@ -29,14 +33,10 @@ def logistic_model(t, L, k, t0):
 def main():
     apply_style()
 
-    # Load ai4chips counts by year
-    counts = Counter()
-    with open(DATA / "final_ai4chips_high_only.csv") as f:
-        reader = csv.reader(f)
-        header = next(reader)
-        yi = header.index("year")
-        for row in reader:
-            counts[int(row[yi])] += 1
+    # Counts by year, via the shared loader so curation and the year cap match
+    # the rest of the figures. Reading the CSV directly bypassed both, fitting
+    # the growth model to the uncurated corpus including the partial final year.
+    counts = Counter(p["year"] for p in plot_style.load_csv_papers())
 
     years = np.array(range(2015, 2026), dtype=float)
     observed = np.array([counts[int(y)] for y in years], dtype=float)
@@ -117,4 +117,10 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+    _p = argparse.ArgumentParser()
+    _p.add_argument("--datadir", default=str(DEFAULT_DATA),
+                    help="Path to data directory (default: %(default)s)")
+    _args = _p.parse_args()
+    plot_style.set_data_dir(_args.datadir)
     main()
