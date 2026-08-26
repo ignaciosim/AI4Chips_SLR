@@ -8,6 +8,7 @@ Provides:
   - Trend labeling, venue normalization, shared constants
 """
 
+import re as _re_survey
 import csv
 import json
 import math
@@ -99,16 +100,23 @@ def apply_style():
     })
 
 
-def save_figure(fig, name):
-    """Save figure as PDF and PNG to the figures directory."""
+# Output formats for save_figure(). PNG alone is enough while iterating; set
+# SLR_FIG_PDF=1 (or add "pdf" here) to also emit vector PDFs, which is what a
+# journal will want at submission -- rcParams already sets pdf.fonttype = 42 so
+# the text stays selectable and embeddable.
+FIGURE_FORMATS = ["png"]
+if os.environ.get("SLR_FIG_PDF"):
+    FIGURE_FORMATS = ["pdf", "png"]
+
+
+def save_figure(fig, name, formats=None):
+    """Save the figure to FIG_DIR in each of FIGURE_FORMATS."""
     os.makedirs(FIG_DIR, exist_ok=True)
-    pdf_path = os.path.join(FIG_DIR, name + ".pdf")
-    png_path = os.path.join(FIG_DIR, name + ".png")
-    fig.savefig(pdf_path)
-    fig.savefig(png_path, dpi=300)
+    for ext in (formats or FIGURE_FORMATS):
+        path = os.path.join(FIG_DIR, f"{name}.{ext}")
+        fig.savefig(path, dpi=300 if ext == "png" else None)
+        print(f"  Saved {path}")
     plt.close(fig)
-    print(f"  Saved {pdf_path}")
-    print(f"  Saved {png_path}")
 
 
 def format_axes(ax):
@@ -350,12 +358,42 @@ def classify_commercial(chip_tasks, title):
 
 # ── Survey detection ─────────────────────────────────────────────────────────
 
+# Survey / review detection.
+#
+# Plain substring matching on ["survey", "review", ...] produced false
+# positives on titles where the word is part of a method or instrument name --
+# "Review-SEM" (a defect-review scanning electron microscope) and "A
+# Self-Review Bayesian Optimization Method" were both classified as surveys.
+# Word boundaries alone do not help, because the hyphen is itself a boundary.
+# We therefore match the PHRASES in which a genuine survey announces itself.
+SURVEY_QUALIFIER = (r"(?:comprehensive|systematic|brief|short|critical|recent|"
+                    r"literature|extensive|concise)\s+")
+SURVEY_PATTERNS = [
+    rf"\ba\s+(?:{SURVEY_QUALIFIER})?survey\b",
+    r"\bsurvey\s+(?:of|on|for)\b",
+    rf"\ba\s+(?:{SURVEY_QUALIFIER})?review\b",
+    r"\breview\s+(?:of|on)\b",
+    r"\ban?\s+overview\s+(?:of|on)\b",
+    r"\boverview\s+(?:of|on)\b",
+    r"\ba\s+tutorial\b|\btutorial\s+(?:on|for)\b",
+    r"\ba\s+taxonomy\b|\btaxonomy\s+(?:of|for)\b",
+    r"\bstate[- ]of[- ]the[- ]art\s+(?:review|survey)\b",
+    r"\bsystematic\s+literature\s+review\b",
+]
+_SURVEY_RX = [_re_survey.compile(p, _re_survey.I) for p in SURVEY_PATTERNS]
+# Retained for reference; no longer used for matching.
 SURVEY_KW = ["survey", "review", "overview", "tutorial", "taxonomy"]
 
 
+def is_survey_title(title):
+    """True when the title announces itself as a survey/review/tutorial."""
+    t = title or ""
+    return any(rx.search(t) for rx in _SURVEY_RX)
+
+
+
 def is_survey(title):
-    t = title.lower()
-    return any(kw in t for kw in SURVEY_KW)
+    return is_survey_title(title)
 
 
 # ── Soft error / deposition topic matching ───────────────────────────────────
@@ -448,13 +486,54 @@ def percentile(values, p):
 
 # ── Data loaders ─────────────────────────────────────────────────────────────
 
-def load_csv_papers():
+def _curation_sets():
+    """DOIs excluded by manual curation, plus the doc_id -> doi map needed to
+    apply them (the CSV carries no DOI column).
+
+    EXCLUDE_DOIS lives in analysis/generate_stage_shortlist.py, which is the
+    record of every curation decision. Imported lazily and defensively so a
+    missing analysis/ directory degrades to "no exclusions" rather than
+    breaking every figure.
+    """
+    import os as _os
+    import sys as _sys
+    excl = set()
+    try:
+        _sys.path.insert(0, _os.path.join(SCRIPT_DIR, "analysis"))
+        from generate_stage_shortlist import EXCLUDE_DOIS as _E
+        excl = {d.lower() for d in _E}
+    except Exception:
+        pass
+    doi_by_doc = {}
+    try:
+        with open(JSON_PATH, encoding="utf-8") as f:
+            for rec in json.load(f):
+                doi_by_doc[rec["doc_id"]] = (rec.get("doi") or "").lower()
+    except Exception:
+        pass
+    return excl, doi_by_doc
+
+
+def load_csv_papers(year_max=-1, curated=True):
     """Load ai4chips CSV → list of dicts with method_tags and chip_tasks.
 
     Returns list of {doc_id, stage, year, title, source, classification,
-    confidence, method_tags: [str], chip_tasks: [str]}. Papers with year >
-    DISPLAY_YEAR_MAX are dropped.
+    confidence, method_tags: [str], chip_tasks: [str]}.
+
+    year_max caps the publication year. It defaults to DISPLAY_YEAR_MAX, which
+    excludes the partially-indexed final year — correct for TIME-SERIES
+    figures, where a partial year would read as a downturn. AGGREGATE figures
+    (cross-tabulations, totals, heatmaps) should pass year_max=None to use the
+    whole corpus; there is no reason to discard papers from a cross-tab, and
+    doing so silently makes figure Ns disagree with the reported corpus size.
     """
+    if year_max == -1:
+        year_max = DISPLAY_YEAR_MAX
+    # curated=True applies the same manual curation the manuscript reports --
+    # survey/review removal and the manually identified false positives -- so
+    # that figure Ns match the corpus size stated in the text. Pass False to
+    # see the raw high-confidence corpus.
+    excl, doi_by_doc = _curation_sets() if curated else (set(), {})
     papers = []
     with open(CSV_PATH, "r", encoding="utf-8") as f:
         reader = csv.reader(f)
@@ -464,20 +543,32 @@ def load_csv_papers():
             if not doc_id:
                 continue
             yr = int(row[2])
-            if yr > DISPLAY_YEAR_MAX:
+            if year_max is not None and yr > year_max:
                 continue
             mtags = []
             ctasks = []
+            # Columns 8+ hold MULTI-VALUE fields joined by "; " — method_tags
+            # (bare keys) then ai_methods / chip_tasks (key:surface_form).
+            # They must be split on ";" first: without it a paper tagged
+            # "deep_learning; graph_neural_networks" was counted as a single
+            # distinct category rather than under each method, and only the
+            # FIRST chip task of each paper survived.
             for val in row[8:]:
-                v = val.strip()
-                if not v:
+                for part in val.split(";"):
+                    v = part.strip()
+                    if not v:
+                        continue
+                    if ":" in v:
+                        key = v.split(":")[0].strip()
+                        if key in TASK_KEYS:
+                            ctasks.append(key)
+                    else:
+                        mtags.append(v)
+            if curated:
+                if is_survey_title(row[3]):
                     continue
-                if ":" in v:
-                    key = v.split(":")[0].strip()
-                    if key in TASK_KEYS:
-                        ctasks.append(key)
-                else:
-                    mtags.append(v)
+                if doi_by_doc.get(doc_id, "") in excl:
+                    continue
             papers.append({
                 "doc_id": doc_id,
                 "stage": row[1].strip(),
@@ -486,7 +577,7 @@ def load_csv_papers():
                 "source": VENUE_ALIASES.get(row[4].strip(), row[4].strip()),
                 "classification": row[5].strip(),
                 "confidence": row[6].strip(),
-                "method_tags": mtags,
+                "method_tags": list(dict.fromkeys(mtags)),
                 "chip_tasks": list(dict.fromkeys(ctasks)),
             })
     return papers
@@ -519,9 +610,13 @@ def load_jsonl_papers():
     return papers
 
 
-def merge_csv_json():
-    """Merge CSV (methods/tasks) with JSON (citations/affiliations) on doc_id."""
-    csv_papers = load_csv_papers()
+def merge_csv_json(year_max=-1, curated=True):
+    """Merge CSV (methods/tasks) with JSON (citations/affiliations) on doc_id.
+
+    year_max is forwarded to load_csv_papers(); pass None for aggregate
+    figures that should use the whole corpus. See load_csv_papers().
+    """
+    csv_papers = load_csv_papers(year_max=year_max, curated=curated)
     json_papers = load_json_papers()
     json_lookup = {p["doc_id"]: p for p in json_papers}
     merged = []
