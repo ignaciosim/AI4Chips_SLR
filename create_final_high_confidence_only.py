@@ -66,10 +66,12 @@ print(f"Final paper count: {len(clean_df)}")
 # Sort by year
 clean_df = clean_df.sort_values(by=['year', 'doc_id'], ascending=[True, True])
 
-# Export CSV
-csv_output = outdir / 'final_ai4chips_high_only.csv'
-clean_df.to_csv(csv_output, index=False)
-print(f"\nExported CSV to: {csv_output}")
+# Export the post-GaN corpus before curation. This is the PRISMA
+# "high-confidence corpus after GaN correction" count; the analysed corpus is
+# produced further down, after surveys and manual false positives are removed.
+pre_csv = outdir / 'high_confidence_pre_curation.csv'
+clean_df.to_csv(pre_csv, index=False)
+print(f"\nExported pre-curation CSV to: {pre_csv}  (N={len(clean_df)})")
 
 # Create JSON with full metadata
 doc_ids_needed = set(clean_df['doc_id'].tolist())
@@ -126,6 +128,44 @@ with open(outdir / 'raw_scopus_all.jsonl', 'r') as f:
 
 # Sort by year
 papers_sorted = sorted(papers, key=lambda x: (x['year'], x['doc_id']))
+
+# Pre-curation JSON, matching high_confidence_pre_curation.csv above.
+pre_json = outdir / 'high_confidence_pre_curation.json'
+with open(pre_json, 'w') as f:
+    json.dump(papers_sorted, f, indent=2)
+print(f"Exported pre-curation JSON to: {pre_json}  (N={len(papers_sorted)})")
+
+# ── Curation ───────────────────────────────────────────────────────────────
+# Surveys and manually-identified false positives are removed HERE, so that
+# final_ai4chips_high_only.* is the corpus the paper analyses. Applying it
+# downstream instead left every consumer that read this file directly (23
+# scripts under analysis/) reporting the pre-curation count, which disagreed
+# with the figures and with the manuscript. DOIs are only available after the
+# JSONL join above, which is why curation cannot happen earlier.
+sys.path.insert(0, str(Path(__file__).resolve().parent / 'analysis'))
+from generate_stage_shortlist import EXCLUDE_DOIS, is_survey_title  # noqa: E402
+
+def _is_excluded(paper):
+    if is_survey_title(paper.get('title', '')):
+        return 'survey'
+    if (paper.get('doi') or '').lower() in EXCLUDE_DOIS:
+        return 'manual false positive'
+    return None
+
+dropped = [(p_, why) for p_ in papers_sorted if (why := _is_excluded(p_))]
+papers_sorted = [p_ for p_ in papers_sorted if not _is_excluded(p_)]
+keep_ids = {p_['doc_id'] for p_ in papers_sorted}
+clean_df = clean_df[clean_df['doc_id'].isin(keep_ids)]
+
+n_surveys = sum(1 for _, why in dropped if why == 'survey')
+print(f"\nCuration: removed {len(dropped)} papers "
+      f"({n_surveys} surveys, {len(dropped) - n_surveys} manual false positives)")
+for p_, why in dropped:
+    print(f"  [{why:22}] {p_['year']}  {p_['title'][:66]}")
+
+csv_output = outdir / 'final_ai4chips_high_only.csv'
+clean_df.to_csv(csv_output, index=False)
+print(f"\nExported analysed-corpus CSV to: {csv_output}  (N={len(clean_df)})")
 
 # Write JSON
 json_output = outdir / 'final_ai4chips_high_only.json'
