@@ -13,7 +13,7 @@ from plot_style import (apply_style, save_figure, DOUBLE_COL, COLORS,
 
 def main():
     apply_style()
-    papers = load_csv_papers()
+    papers = load_csv_papers(year_max=None)  # aggregate: use the whole corpus
 
     # Count co-occurrences of chip tasks
     task_counts = Counter()

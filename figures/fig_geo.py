@@ -8,13 +8,15 @@ from collections import Counter, defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
-from plot_style import (apply_style, save_figure, format_axes, SINGLE_COL,
+from plot_style import (DISPLAY_YEAR_MAX,
+                        apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, merge_csv_json)
 
 
 def main():
     apply_style()
-    papers = merge_csv_json()
+    # Totals below are an aggregate: use the whole corpus.
+    papers = merge_csv_json(year_max=None)
 
     papers_by_year = Counter()
     country_counts = Counter()
@@ -56,6 +58,11 @@ def main():
                 str(val), va="center", ha="left", fontsize=6)
     fig.tight_layout()
     save_figure(fig, "fig_geo_totals")
+
+    # The trend figures below ARE time series: drop the partially-indexed
+    # final year so the series does not end on a spurious dip. The totals
+    # above deliberately keep it -- they are aggregates, not a series.
+    all_years = [y for y in all_years if y <= DISPLAY_YEAR_MAX]
 
     # ── Multi-line: top 5 trends ───────────────────────────────────────────
     fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.2))

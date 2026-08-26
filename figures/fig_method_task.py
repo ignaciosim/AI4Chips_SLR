@@ -28,7 +28,7 @@ METHOD_LABEL = {
 
 def main():
     apply_style()
-    papers = load_csv_papers()
+    papers = load_csv_papers(year_max=None)  # aggregate: use the whole corpus
 
     # Count methods and tasks globally
     method_counts = Counter()

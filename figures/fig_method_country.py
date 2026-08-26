@@ -13,7 +13,7 @@ from plot_style import (apply_style, save_figure, DOUBLE_COL, COLORS,
 
 def main():
     apply_style()
-    papers = merge_csv_json()
+    papers = merge_csv_json(year_max=None)  # aggregate: whole corpus
 
     country_counts = Counter()
     country_methods = defaultdict(Counter)

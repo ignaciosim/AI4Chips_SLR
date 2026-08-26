@@ -7,13 +7,15 @@ from collections import Counter, defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
-from plot_style import (apply_style, save_figure, format_axes, SINGLE_COL,
+from plot_style import (DISPLAY_YEAR_MAX,
+                        apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, COLOR_OTHER, load_csv_papers)
 
 
 def main():
     apply_style()
-    papers = load_csv_papers()
+    # Totals below are an aggregate: use the whole corpus.
+    papers = load_csv_papers(year_max=None)
 
     # Aggregate
     tag_counts = Counter()
@@ -48,6 +50,11 @@ def main():
                 str(val), va="center", ha="left", fontsize=6.5)
     fig.tight_layout()
     save_figure(fig, "fig_ai_methods_totals")
+
+    # The trend figures below ARE time series: drop the partially-indexed
+    # final year so the series does not end on a spurious dip. The totals
+    # above deliberately keep it -- they are aggregates, not a series.
+    all_years = [y for y in all_years if y <= DISPLAY_YEAR_MAX]
 
     # ── Stacked area: top 6 method share% over time ───────────────────────
     fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.2))
