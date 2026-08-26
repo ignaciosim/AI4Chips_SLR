@@ -1,5 +1,6 @@
 # Data directories (pipeline outputs)
 scopus_out*/
+scopus_conf*/
 openalex_cache/
 
 # Secrets
