@@ -7,7 +7,8 @@ from collections import Counter
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-from plot_style import (apply_style, save_figure, DOUBLE_COL, COLORS,
+from plot_style import (display_methods,
+                        apply_style, save_figure, DOUBLE_COL, COLORS,
                         TASK_LABEL, load_csv_papers)
 
 METHOD_LABEL = {
@@ -36,7 +37,7 @@ def main():
     cross = Counter()  # (method, task) → count
 
     for p in papers:
-        for m in p["method_tags"]:
+        for m in display_methods(p["method_tags"]):
             method_counts[m] += 1
             for t in p["chip_tasks"]:
                 cross[(m, t)] += 1

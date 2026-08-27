@@ -7,7 +7,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from collections import defaultdict
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
-from plot_style import (apply_style, save_figure, format_axes, SINGLE_COL,
+from plot_style import (display_methods,
+                        apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, TASK_LABEL, VENUE_ALIASES,
                         merge_csv_json, is_survey)
 
@@ -25,7 +26,7 @@ def main():
             continue
         cites = p["cited_by_count"]
         year_cites[p["year"]].append(cites)
-        for m in p["method_tags"]:
+        for m in display_methods(p["method_tags"]):
             method_cites[m].append(cites)
         for t in p["chip_tasks"]:
             task_cites[t].append(cites)

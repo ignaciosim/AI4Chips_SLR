@@ -7,7 +7,8 @@ from collections import Counter, defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
-from plot_style import (DISPLAY_YEAR_MAX,
+from plot_style import (display_methods,
+                        DISPLAY_YEAR_MAX,
                         apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, COLOR_OTHER, load_csv_papers)
 
@@ -23,7 +24,7 @@ def main():
     method_year = defaultdict(Counter)
     for p in papers:
         papers_by_year[p["year"]] += 1
-        for t in p["method_tags"]:
+        for t in display_methods(p["method_tags"]):
             tag_counts[t] += 1
             method_year[t][p["year"]] += 1
 

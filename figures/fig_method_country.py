@@ -7,7 +7,8 @@ from collections import Counter, defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
-from plot_style import (apply_style, save_figure, DOUBLE_COL, COLORS,
+from plot_style import (display_methods,
+                        apply_style, save_figure, DOUBLE_COL, COLORS,
                         merge_csv_json)
 
 
@@ -27,7 +28,7 @@ def main():
                 countries.add(c)
         for c in countries:
             country_counts[c] += 1
-            for m in p["method_tags"]:
+            for m in display_methods(p["method_tags"]):
                 country_methods[c][m] += 1
 
     # Top 8 countries

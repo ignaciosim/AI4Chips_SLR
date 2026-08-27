@@ -30,7 +30,8 @@ from matplotlib.colors import LinearSegmentedColormap
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import plot_style  # noqa: E402
-from plot_style import (apply_style, save_figure, load_csv_papers,  # noqa: E402
+from plot_style import (display_methods,
+                        apply_style, save_figure, load_csv_papers,  # noqa: E402
                         DOUBLE_COL, COLORS)
 
 STAGES = ["design", "fabrication", "packaging", "transit", "in_field",
@@ -57,7 +58,7 @@ def main():
         if st not in STAGES:
             continue
         stage_n[st] += 1
-        for m in p["method_tags"]:
+        for m in display_methods(p["method_tags"]):
             stage_methods[st][m] += 1
             totals[m] += 1
 

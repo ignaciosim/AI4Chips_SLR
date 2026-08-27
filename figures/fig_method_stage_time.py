@@ -38,7 +38,8 @@ from matplotlib.colors import LinearSegmentedColormap, TwoSlopeNorm
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import plot_style  # noqa: E402
-from plot_style import (apply_style, save_figure, load_csv_papers,  # noqa: E402
+from plot_style import (display_methods,
+                        apply_style, save_figure, load_csv_papers,  # noqa: E402
                         DOUBLE_COL, COLORS)
 
 STAGES = ["design", "fabrication", "packaging", "transit", "in_field"]
@@ -68,7 +69,7 @@ def main():
         if p["stage"] not in STAGES:
             continue
         (late if p["year"] >= SPLIT_YEAR else early)[p["stage"]].append(p)
-        for m in p["method_tags"]:
+        for m in display_methods(p["method_tags"]):
             totals[m] += 1
 
     methods = sorted([m for m, c in totals.items() if c >= MIN_METHOD_TOTAL],

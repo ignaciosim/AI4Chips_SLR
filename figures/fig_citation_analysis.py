@@ -15,7 +15,8 @@ from collections import defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator, MaxNLocator
-from plot_style import (apply_style, save_figure, format_axes, add_bar_labels,
+from plot_style import (display_methods,
+                        apply_style, save_figure, format_axes, add_bar_labels,
                         SINGLE_COL, COLORS, TASK_LABEL, SHORT_VENUE,
                         merge_csv_json, is_survey)
 
@@ -71,7 +72,7 @@ def main():
         records.append(p)
         all_cites.append(cites)
         year_cites[p["year"]].append(cites)
-        for m in p["method_tags"]:
+        for m in display_methods(p["method_tags"]):
             method_cites[m].append(cites)
         for t in p["chip_tasks"]:
             task_cites[t].append(cites)

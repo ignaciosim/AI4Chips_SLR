@@ -170,6 +170,22 @@ TASK_LABEL_SHORT = {
 
 TASK_LABEL = {k: TASK_LABEL_SHORT.get(k, v.label) for k, v in _CHIP_TASKS.items()}
 
+# Method-axis display filter. anomaly_detection is an AI_METHODS class, so it
+# participates in the M predicate that admits papers to the corpus, but unlike
+# every other class it names a problem formulation rather than a method family
+# -- anomaly/outlier/changepoint detection is something you do WITH deep
+# learning or classical ML, not an alternative to them. It is excluded from
+# figures that plot a method dimension, and left in the ontology so that the
+# corpus is unchanged. Reclassifying it as a chip task is the real fix, but
+# that moves the corpus and belongs to a future run.
+DISPLAY_EXCLUDE_METHODS = {"anomaly_detection"}
+
+
+def display_methods(tags):
+    """Method tags minus the classes that are not method families."""
+    return [t for t in tags if t not in DISPLAY_EXCLUDE_METHODS]
+
+
 
 VENUE_ALIASES = {"Integration the VLSI Journal": "Integration"}
 
