@@ -16,15 +16,11 @@ import argparse
 import csv
 from collections import Counter, defaultdict
 
-# Known chip-task keys (from slr_ontology.py CHIP_DESIGN_TASKS)
-TASK_KEYS = {
-    "placement", "routing", "timing_analysis", "logic_synthesis",
-    "power_analysis", "design_space_exploration", "analog_circuit_design",
-    "verification", "calibration", "lithography_optimization",
-    "hotspot_detection", "defect_detection", "yield_prediction",
-    "wafer_map_analysis", "process_optimization", "test_generation",
-    "fault_diagnosis", "reliability_analysis", "thermal_management",
-}
+# Task keys and display labels come from plot_style, which derives them from
+# slr_ontology. They were previously duplicated here; the copies drifted.
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
+from plot_style import TASK_KEYS, TASK_LABEL as LABEL  # noqa: E402
 
 
 def parse_chip_tasks(row):
@@ -44,30 +40,6 @@ def parse_chip_tasks(row):
             tasks.append(key)
     # deduplicate within a single paper (same task matched on multiple surface forms)
     return list(dict.fromkeys(tasks))
-
-
-# ── Friendly display labels ──────────────────────────────────────────────
-LABEL = {
-    "placement": "Placement",
-    "routing": "Routing",
-    "timing_analysis": "Timing Analysis",
-    "logic_synthesis": "RTL & Synthesis",
-    "power_analysis": "Power Analysis",
-    "design_space_exploration": "Design Space Exploration",
-    "analog_circuit_design": "Analog Design",
-    "verification": "Verification",
-    "calibration": "Calibration",
-    "lithography_optimization": "Lithography Optimization",
-    "hotspot_detection": "Hotspot Detection",
-    "defect_detection": "Defect Detection",
-    "yield_prediction": "Yield Prediction",
-    "wafer_map_analysis": "Wafer Map Analysis",
-    "process_optimization": "Process Optimization",
-    "test_generation": "Test Generation",
-    "fault_diagnosis": "Fault Diagnosis",
-    "reliability_analysis": "Reliability Analysis",
-    "thermal_management": "Thermal Management",
-}
 
 
 def trend_label(counts_by_year, all_years):

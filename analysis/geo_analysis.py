@@ -54,38 +54,11 @@ def get_region(country):
 
 # ── Chip task keys (from slr_ontology.py) ─────────────────────────────────
 
-TASK_KEYS = {
-    "placement", "routing", "timing_analysis", "logic_synthesis",
-    "power_analysis", "design_space_exploration", "analog_circuit_design",
-    "verification", "calibration", "lithography_optimization",
-    "hotspot_detection", "defect_detection", "yield_prediction",
-    "wafer_map_analysis", "process_optimization", "test_generation",
-    "fault_diagnosis", "reliability_analysis", "thermal_management",
-    "security_analysis",
-}
-
-TASK_LABEL = {
-    "placement": "Placement",
-    "routing": "Routing",
-    "timing_analysis": "Timing Analysis",
-    "logic_synthesis": "RTL & Synthesis",
-    "power_analysis": "Power Analysis",
-    "design_space_exploration": "Design Space Expl.",
-    "analog_circuit_design": "Analog Design",
-    "verification": "Verification",
-    "calibration": "Calibration",
-    "lithography_optimization": "Lithography Opt.",
-    "hotspot_detection": "Hotspot Detection",
-    "defect_detection": "Defect Detection",
-    "yield_prediction": "Yield Prediction",
-    "wafer_map_analysis": "Wafer Map Analysis",
-    "process_optimization": "Process Opt.",
-    "test_generation": "Test Generation",
-    "fault_diagnosis": "Fault Diagnosis",
-    "reliability_analysis": "Reliability",
-    "thermal_management": "Thermal Mgmt",
-    "security_analysis": "Security",
-}
+# Task keys and display labels come from plot_style, which derives them from
+# slr_ontology. They were previously duplicated here; the copies drifted.
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
+from plot_style import TASK_KEYS, TASK_LABEL  # noqa: E402
 
 
 # ── Parse method tags and chip tasks from CSV ─────────────────────────────

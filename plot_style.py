@@ -148,38 +148,28 @@ def add_bar_labels(ax, bars, fmt="{:.0f}", fontsize=7, offset=0.5):
 
 # ── Shared constants ─────────────────────────────────────────────────────────
 
-TASK_KEYS = {
-    "placement", "routing", "timing_analysis", "logic_synthesis",
-    "power_analysis", "design_space_exploration", "analog_circuit_design",
-    "verification", "calibration", "lithography_optimization",
-    "hotspot_detection", "defect_detection", "yield_prediction",
-    "wafer_map_analysis", "process_optimization", "test_generation",
-    "fault_diagnosis", "reliability_analysis", "thermal_management",
-    "security_analysis",
+# Task keys and display labels are DERIVED from the ontology, which is the
+# single source of truth for domain vocabulary. Six labels are abbreviated for
+# figure axes, where the full ontology name is too long to read at 7pt; every
+# other label is the ontology's own. Do not hand-maintain either map -- five
+# separate copies had drifted apart before this was centralised (one was
+# missing security_analysis entirely, silently dropping the fifth-largest
+# task from that analysis).
+from slr_ontology import CHIP_DESIGN_TASKS as _CHIP_TASKS  # noqa: E402
+
+TASK_KEYS = set(_CHIP_TASKS)
+
+TASK_LABEL_SHORT = {
+    "design_space_exploration": "Design Space Expl.",
+    "lithography_optimization": "Lithography Opt.",
+    "process_optimization":     "Process Opt.",
+    "reliability_analysis":     "Reliability",
+    "thermal_management":       "Thermal Mgmt",
+    "security_analysis":        "Security",
 }
 
-TASK_LABEL = {
-    "placement": "Placement",
-    "routing": "Routing",
-    "timing_analysis": "Timing Analysis",
-    "logic_synthesis": "RTL & Synthesis",
-    "power_analysis": "Power Analysis",
-    "design_space_exploration": "Design Space Expl.",
-    "analog_circuit_design": "Analog Design",
-    "verification": "Verification",
-    "calibration": "Calibration",
-    "lithography_optimization": "Lithography Opt.",
-    "hotspot_detection": "Hotspot Detection",
-    "defect_detection": "Defect Detection",
-    "yield_prediction": "Yield Prediction",
-    "wafer_map_analysis": "Wafer Map Analysis",
-    "process_optimization": "Process Opt.",
-    "test_generation": "Test Generation",
-    "fault_diagnosis": "Fault Diagnosis",
-    "reliability_analysis": "Reliability",
-    "thermal_management": "Thermal Mgmt",
-    "security_analysis": "Security",
-}
+TASK_LABEL = {k: TASK_LABEL_SHORT.get(k, v.label) for k, v in _CHIP_TASKS.items()}
+
 
 VENUE_ALIASES = {"Integration the VLSI Journal": "Integration"}
 

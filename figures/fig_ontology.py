@@ -14,7 +14,8 @@ import matplotlib.patches as mpatches
 from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 
 # Reuse project style
-from plot_style import apply_style, save_figure, COLORS, DOUBLE_COL
+from plot_style import (apply_style, save_figure, COLORS, DOUBLE_COL,
+                        TASK_LABEL)
 
 apply_style()
 
@@ -29,15 +30,10 @@ AI_METHODS = [
     "Transfer Learning", "Anomaly Detection", "GANs", "General ML Signals",
 ]
 
-CHIP_TASKS = [
-    "Placement", "Routing", "Timing Analysis", "RTL & Synthesis",
-    "Power Analysis", "Design Space Expl.", "Analog Design",
-    "Verification", "Calibration", "Lithography Optim.",
-    "Hotspot Detection", "Defect Detection", "Yield Prediction",
-    "Wafer Map Analysis", "Process Optimization", "Test Generation",
-    "Fault Diagnosis", "Reliability Analysis", "Thermal Management",
-    "Security Analysis",
-]
+# Derived from plot_style.TASK_LABEL, which derives from slr_ontology. The
+# hardcoded list this replaces was a fourth independent spelling of these
+# labels and had drifted from the other three.
+CHIP_TASKS = list(TASK_LABEL.values())
 
 HW_ARTIFACTS = [
     "Neural Accelerator", "In-Memory Computing",

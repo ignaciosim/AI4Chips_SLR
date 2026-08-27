@@ -59,16 +59,10 @@ DIGITAL_TITLE_KW = [
     "cache", "boolean", "logic circuit", "logic gate",
 ]
 
-# Known chip-task keys for entity parsing
-ALL_TASK_KEYS = {
-    "placement", "routing", "timing_analysis", "logic_synthesis",
-    "power_analysis", "design_space_exploration", "analog_circuit_design",
-    "verification", "calibration", "lithography_optimization",
-    "hotspot_detection", "defect_detection", "yield_prediction",
-    "wafer_map_analysis", "process_optimization", "test_generation",
-    "fault_diagnosis", "reliability_analysis", "thermal_management",
-    "security_analysis",
-}
+# Chip-task keys come from plot_style, which derives them from slr_ontology.
+import sys as _sys, os as _os
+_sys.path.insert(0, _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), ".."))
+from plot_style import TASK_KEYS as ALL_TASK_KEYS  # noqa: E402
 
 
 def parse_chip_tasks(row):
