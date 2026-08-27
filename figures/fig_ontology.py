@@ -31,7 +31,7 @@ AI_METHODS = [
 
 CHIP_TASKS = [
     "Placement", "Routing", "Timing Analysis", "RTL & Synthesis",
-    "Power Analysis", "Design Space Expl.", "Analog Circuit Design",
+    "Power Analysis", "Design Space Expl.", "Analog Design",
     "Verification", "Calibration", "Lithography Optim.",
     "Hotspot Detection", "Defect Detection", "Yield Prediction",
     "Wafer Map Analysis", "Process Optimization", "Test Generation",

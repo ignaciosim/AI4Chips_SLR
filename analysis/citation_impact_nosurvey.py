@@ -90,7 +90,7 @@ TASK_LABEL = {
     "logic_synthesis": "RTL & Synthesis",
     "power_analysis": "Power Analysis",
     "design_space_exploration": "Design Space Expl.",
-    "analog_circuit_design": "Analog Circuit",
+    "analog_circuit_design": "Analog Design",
     "verification": "Verification",
     "calibration": "Calibration",
     "lithography_optimization": "Lithography Opt.",

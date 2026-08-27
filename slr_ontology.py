@@ -360,7 +360,7 @@ CHIP_DESIGN_TASKS: Dict[str, OntologyClass] = {
         ],
     ),
     "analog_circuit_design": OntologyClass(
-        key="analog_circuit_design", label="Analog Circuit Design",
+        key="analog_circuit_design", label="Analog Design",
         surface_forms=[
             "analog design", "analog circuit", "adc", "dac",
             "analog-to-digital", "pll", "amplifier design",
