@@ -162,7 +162,7 @@ TASK_LABEL = {
     "placement": "Placement",
     "routing": "Routing",
     "timing_analysis": "Timing Analysis",
-    "logic_synthesis": "Logic Synthesis",
+    "logic_synthesis": "RTL & Synthesis",
     "power_analysis": "Power Analysis",
     "design_space_exploration": "Design Space Expl.",
     "analog_circuit_design": "Analog Circuit",

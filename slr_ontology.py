@@ -325,7 +325,7 @@ CHIP_DESIGN_TASKS: Dict[str, OntologyClass] = {
         ],
     ),
     "logic_synthesis": OntologyClass(
-        key="logic_synthesis", label="Logic Synthesis",
+        key="logic_synthesis", label="RTL & Synthesis",
         surface_forms=[
             # Core synthesis terms
             "logic synthesis", "high-level synthesis", "hls",
