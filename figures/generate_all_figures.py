@@ -38,6 +38,7 @@ FIGURE_MODULES = [
     ("fig_keyword_country",  "fig_keyword_country.pdf"),
     ("fig_method_task",      "fig_method_task_heatmap.pdf"),
     ("fig_growth_model",     "fig_growth_model.pdf"),
+    ("fig_growth_contrast",  "fig_growth_contrast.pdf"),
     ("fig_citation_analysis","fig_cite_year_box.pdf, fig_cite_concentration.pdf, fig_cite_methods.pdf, fig_cite_tasks.pdf, fig_cite_venues.pdf"),
 ]
 
