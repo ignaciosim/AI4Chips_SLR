@@ -12,9 +12,16 @@ countries counts once for each, so shares sum to more than 100%. Both corpora
 use the same convention, which is what makes them comparable.
 
 Outputs:
-  fig_geo_share_contrast   grouped barh, share in each corpus (aggregate, incl. 2026)
-  fig_geo_specialization   ratio of the two shares, diverging from parity
-  fig_geo_trends_contrast  two panels, share of annual output, 2015-2025
+  fig_geo_share_contrast    grouped barh, share in each corpus (aggregate, incl. 2026)
+  fig_geo_specialization    ratio of the two shares, diverging from parity
+  fig_geo_trends_contrast   two panels side by side, share of annual output
+  fig_geo_trends_overlay    ONE panel, both corpora superimposed
+  fig_geo_trends_facets     small multiples, one country per panel
+
+The last three are three ways to draw the same comparison, kept together so the
+choice is a caption away rather than a rewrite. Overlay reads fastest for a
+handful of countries; facets scale past that without turning into spaghetti;
+the side-by-side panels keep each corpus legible on its own.
 """
 
 import sys, os
@@ -24,6 +31,7 @@ from collections import Counter, defaultdict
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 from matplotlib.ticker import FixedLocator
 
 from plot_style import (DISPLAY_YEAR_MAX, apply_style, save_figure, format_axes,
@@ -35,6 +43,11 @@ from plot_style import (DISPLAY_YEAR_MAX, apply_style, save_figure, format_axes,
 # is the whole point of a contrast figure.
 TREND_COUNTRIES = ["United States", "China", "South Korea",
                    "Hong Kong", "Taiwan", "India"]
+
+# The overlay panel superimposes two lines per country, so it takes the top
+# four rather than the full six -- eight lines is already at the limit of what
+# one axis can carry before colour alone stops distinguishing them.
+OVERLAY_COUNTRIES = TREND_COUNTRIES[:4]
 
 TOP_N_BARS = 10
 
@@ -185,6 +198,120 @@ def fig_trends_contrast(ai_year, full_year, ai_papers_by_year, full_papers_by_ye
     save_figure(fig, "fig_geo_trends_contrast")
 
 
+def _shares(country_year, totals, country, years):
+    return [100 * country_year[country].get(y, 0) / totals[y] if totals.get(y) else 0
+            for y in years]
+
+
+def fig_trends_overlay(ai_year, full_year, ai_by_year, full_by_year):
+    """One panel, both corpora superimposed: solid = AI-for-Chips, dotted = field.
+
+    Only works because both series are SHARES. The two corpora differ by a
+    factor of 22 in size, so on a count axis the AI-for-Chips lines would sit
+    flat against the horizontal axis; as shares of their own corpus they occupy
+    the same 0-45% range and the gap between a country's two lines is readable
+    as what it is -- how much more (or less) of that country's chip output is
+    AI-for-Chips work than the field average would predict.
+    """
+    years = [y for y in sorted(full_by_year)
+             if TREND_START <= y <= DISPLAY_YEAR_MAX]
+
+    fig, ax = plt.subplots(figsize=(DOUBLE_COL * 0.72, 3.3))
+    country_handles = []
+    for i, c in enumerate(OVERLAY_COUNTRIES):
+        ai = _shares(ai_year, ai_by_year, c, years)
+        fl = _shares(full_year, full_by_year, c, years)
+        ax.plot(years, fl, linestyle=":", color=COLORS[i], linewidth=1.3,
+                alpha=0.55, marker=None, zorder=2)
+        line, = ax.plot(years, ai, linestyle="-", color=COLORS[i], linewidth=1.5,
+                        marker="o", markersize=3.2, zorder=3, label=c)
+        country_handles.append(line)
+
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Share of year's output (%)")
+    ax.set_title("Country Share: AI-for-Chips vs. the Field")
+    ax.set_xticks(years)
+    format_axes(ax)
+    # Headroom for the two legends. Without it they sit on top of the US and
+    # China lines, which are exactly the two the figure is about.
+    ax.set_ylim(-2, 58)
+
+    # Two legends: colour encodes country, line style encodes corpus. Folding
+    # both into one legend would need eight entries to say four things.
+    style_handles = [
+        Line2D([], [], color="#444444", linestyle="-", marker="o",
+               markersize=3.2, linewidth=1.5, label="AI-for-Chips"),
+        Line2D([], [], color="#444444", linestyle=":", linewidth=1.3,
+               alpha=0.7, label="All chip research"),
+    ]
+    leg1 = ax.legend(handles=country_handles, fontsize=6.5, loc="upper left",
+                     ncol=2, title="Country", title_fontsize=6.5)
+    ax.add_artist(leg1)
+    ax.legend(handles=style_handles, fontsize=6.5, loc="upper right",
+              title="Corpus", title_fontsize=6.5)
+    fig.tight_layout()
+    save_figure(fig, "fig_geo_trends_overlay")
+
+
+def fig_trends_facets(ai_year, full_year, ai_by_year, full_by_year):
+    """Small multiples: one panel per country, both corpora in each.
+
+    The overlay above stops scaling at about four countries. Faceting trades
+    the direct cross-country comparison for an unambiguous within-country one,
+    which is the comparison this figure is actually making.
+
+    Each panel scales independently. On a shared axis the four smaller
+    countries are compressed into the bottom tenth and their gap -- Hong Kong
+    runs three to six times its field share -- becomes an invisible sliver,
+    which is the one thing this figure exists to show. The cost is that panel
+    heights are not comparable across countries; the caption must say so, and
+    fig_geo_share_contrast carries the cross-country magnitudes.
+    """
+    years = [y for y in sorted(full_by_year)
+             if TREND_START <= y <= DISPLAY_YEAR_MAX]
+    ncols = 3
+    nrows = (len(TREND_COUNTRIES) + ncols - 1) // ncols
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(DOUBLE_COL, 3.6),
+                             sharex=True, sharey=False)
+    axes = axes.ravel()
+    for i, c in enumerate(TREND_COUNTRIES):
+        ax = axes[i]
+        ai = _shares(ai_year, ai_by_year, c, years)
+        fl = _shares(full_year, full_by_year, c, years)
+        ax.fill_between(years, fl, ai, where=[a >= f for a, f in zip(ai, fl)],
+                        color=COLORS[i], alpha=0.16, linewidth=0, interpolate=True)
+        ax.fill_between(years, fl, ai, where=[a < f for a, f in zip(ai, fl)],
+                        color="#999999", alpha=0.18, linewidth=0, interpolate=True)
+        ax.plot(years, fl, linestyle=":", color="#555555", linewidth=1.1)
+        ax.plot(years, ai, linestyle="-", color=COLORS[i], linewidth=1.5,
+                marker="o", markersize=2.6)
+        ax.set_title(c, fontsize=8)
+        ax.set_xticks(years[::3])
+        format_axes(ax)
+    for ax in axes[len(TREND_COUNTRIES):]:
+        ax.set_visible(False)
+
+    for ax in axes[-ncols:]:
+        if ax.get_visible():
+            ax.set_xlabel("Year")
+    for r in range(nrows):
+        axes[r * ncols].set_ylabel("Share (%)", fontsize=8)
+    for ax in axes:
+        ax.set_ylim(bottom=0)
+
+    style_handles = [
+        Line2D([], [], color="#444444", linestyle="-", marker="o",
+               markersize=2.6, linewidth=1.5, label="AI-for-Chips"),
+        Line2D([], [], color="#555555", linestyle=":", linewidth=1.1,
+               label="All chip research"),
+    ]
+    fig.legend(handles=style_handles, fontsize=7, ncol=2, frameon=False,
+               loc="lower center", bbox_to_anchor=(0.5, -0.02))
+    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    save_figure(fig, "fig_geo_trends_facets")
+
+
 def main():
     apply_style()
     ai_total, ai_year, n_ai, full_total, full_year, n_full = collect()
@@ -199,6 +326,8 @@ def main():
     fig_share_contrast(ai_total, n_ai, full_total, n_full)
     fig_specialization(ai_total, n_ai, full_total, n_full)
     fig_trends_contrast(ai_year, full_year, ai_by_year, full_by_year)
+    fig_trends_overlay(ai_year, full_year, ai_by_year, full_by_year)
+    fig_trends_facets(ai_year, full_year, ai_by_year, full_by_year)
 
 
 if __name__ == "__main__":
