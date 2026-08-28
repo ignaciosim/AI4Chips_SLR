@@ -64,7 +64,7 @@ git clone https://github.com/ignaciosim/AI4Chips_SLR_data.git
 cd AI4Chips_SLR
 ln -s ../AI4Chips_SLR_data/corpus corpus
 
-make figures      # 21 figure scripts -> corpus/figures/*.png
+make figures      # 22 figure scripts -> corpus/figures/*.png
 make analysis     # text analyses to stdout
 ```
 
@@ -290,10 +290,11 @@ default `corpus/`).
 
 ### Stage 5b — figures (in `DATADIR/figures/`)
 
-`figures/fig_*.{pdf,png}` — 17 publication figures (pub-volume, AI methods,
+`figures/fig_*.{pdf,png}` — publication figures (pub-volume, AI methods,
 chip tasks, analog/digital split, commercial apps, venues, geography,
 citations, method × country, method × task, emerging topics, growth model,
-task combinations, keyword × country, linguistic terms, etc.). See
+task combinations, keyword × country, AI-for-Chips vs. field geography,
+linguistic terms, etc.). See
 `figures/generate_all_figures.py` for the full list.
 
 ### Stage 5c — patent-landscape companion (optional)

@@ -7,17 +7,21 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from collections import Counter, defaultdict
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
-from plot_style import (apply_style, save_figure, format_axes, SINGLE_COL,
+from plot_style import (DISPLAY_YEAR_MAX,
+                        apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, COLOR_OTHER, VENUE_ALIASES,
                         load_jsonl_papers, get_region)
 
 
 def main():
     apply_style()
-    records = load_jsonl_papers()
+    # Aggregate: keep the whole screened corpus, final year included. The
+    # trend panels below drop it.
+    records = load_jsonl_papers(year_max=None)
 
     papers_by_year = Counter()
     country_counts = Counter()
+    country_year = defaultdict(Counter)
     region_year = defaultdict(Counter)
 
     for rec in records:
@@ -34,6 +38,7 @@ def main():
 
         for c in countries:
             country_counts[c] += 1
+            country_year[c][year] += 1
             region = get_region(c)
             region_year[region][year] += 1
 
@@ -59,6 +64,30 @@ def main():
                 str(val), va="center", ha="left", fontsize=6)
     fig.tight_layout()
     save_figure(fig, "fig_geo_all_totals")
+
+    # The trend figures below ARE time series: drop the partially-indexed
+    # final year so the series does not end on a spurious dip. The totals
+    # above deliberately keep it -- they are aggregates, not a series.
+    all_years = [y for y in all_years if y is not None and y <= DISPLAY_YEAR_MAX]
+
+    # ── Multi-line: top 5 country trends ──────────────────────────────────
+    # Deliberately the same form as fig_geo_trends (the AI-for-Chips version)
+    # so the two can be read side by side: same chart type, same axis, same
+    # top-5 rule. What differs is the corpus.
+    fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.2))
+    top5 = all_countries[:5]
+    for i, c in enumerate(top5):
+        counts = [country_year[c].get(y, 0) for y in all_years]
+        ax.plot(all_years, counts, marker="o", color=COLORS[i],
+                label=c, linewidth=1.2, markersize=3)
+    ax.set_xlabel("Year")
+    ax.set_ylabel("Papers")
+    ax.set_title("Top 5 Country Trends (All Chip Research)")
+    ax.legend(fontsize=6, loc="upper left")
+    ax.set_xticks(all_years[::2])
+    format_axes(ax)
+    fig.tight_layout()
+    save_figure(fig, "fig_geo_all_trends")
 
     # ── Stacked area: regional distribution ────────────────────────────────
     fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.5))

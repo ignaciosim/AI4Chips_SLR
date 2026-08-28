@@ -593,26 +593,40 @@ def load_csv_papers(year_max=-1, curated=True):
     return papers
 
 
-def load_json_papers():
+def load_json_papers(year_max=-1):
     """Load ai4chips JSON → list of dicts with cited_by_count + affiliations.
-    Papers with year > DISPLAY_YEAR_MAX are dropped.
+
+    year_max follows the same convention as load_csv_papers(): it defaults to
+    DISPLAY_YEAR_MAX (drop the partial final year, correct for time series);
+    pass None to keep the whole corpus. AGGREGATE figures must pass None here
+    as well as to load_csv_papers() -- otherwise the CSV side keeps the final
+    year but the JSON side drops it, and those papers silently arrive with
+    empty affiliations and zero citations.
     """
+    if year_max == -1:
+        year_max = DISPLAY_YEAR_MAX
     with open(JSON_PATH, "r", encoding="utf-8") as f:
         data = json.load(f)
-    return [p for p in data if int(p.get("year", 0)) <= DISPLAY_YEAR_MAX]
+    if year_max is None:
+        return data
+    return [p for p in data if int(p.get("year", 0)) <= year_max]
 
 
-def load_jsonl_papers():
-    """Load full corpus JSONL → list of dicts. Records with year >
-    DISPLAY_YEAR_MAX are dropped.
+def load_jsonl_papers(year_max=-1):
+    """Load full corpus JSONL → list of dicts.
+
+    year_max follows the same convention as load_csv_papers(): defaults to
+    DISPLAY_YEAR_MAX, pass None to keep all 14,551 screened records.
     """
+    if year_max == -1:
+        year_max = DISPLAY_YEAR_MAX
     papers = []
     with open(JSONL_PATH, "r", encoding="utf-8") as f:
         for line in f:
             rec = json.loads(line)
             yr = rec.get("year")
             try:
-                if yr is not None and int(yr) > DISPLAY_YEAR_MAX:
+                if year_max is not None and yr is not None and int(yr) > year_max:
                     continue
             except (TypeError, ValueError):
                 pass
@@ -623,11 +637,11 @@ def load_jsonl_papers():
 def merge_csv_json(year_max=-1, curated=True):
     """Merge CSV (methods/tasks) with JSON (citations/affiliations) on doc_id.
 
-    year_max is forwarded to load_csv_papers(); pass None for aggregate
-    figures that should use the whole corpus. See load_csv_papers().
+    year_max is forwarded to BOTH loaders; pass None for aggregate figures
+    that should use the whole corpus. See load_csv_papers().
     """
     csv_papers = load_csv_papers(year_max=year_max, curated=curated)
-    json_papers = load_json_papers()
+    json_papers = load_json_papers(year_max=year_max)
     json_lookup = {p["doc_id"]: p for p in json_papers}
     merged = []
     for cp in csv_papers:
