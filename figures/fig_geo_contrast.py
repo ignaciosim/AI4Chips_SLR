@@ -15,7 +15,8 @@ Outputs:
   fig_geo_share_contrast    grouped barh, share in each corpus (aggregate, incl. 2026)
   fig_geo_specialization    ratio of the two shares, diverging from parity
   fig_geo_trends_contrast   two panels side by side, share of annual output
-  fig_geo_trends_overlay    ONE panel, both corpora superimposed
+  fig_geo_trends_overlay    ONE panel, both corpora superimposed (shares)
+  fig_geo_trends_overlay_counts  same, paper counts on twin axes
   fig_geo_trends_facets     small multiples, one country per panel
 
 The last three are three ways to draw the same comparison, kept together so the
@@ -253,6 +254,72 @@ def fig_trends_overlay(ai_year, full_year, ai_by_year, full_by_year):
     save_figure(fig, "fig_geo_trends_overlay")
 
 
+def fig_trends_overlay_counts(ai_year, full_year, ai_by_year, full_by_year):
+    """The overlay in PAPER COUNTS, on twin axes -- units matching fig_geo_trends.
+
+    Left axis is AI-for-Chips (0-70 papers), right axis is the field
+    (0-700). The scales differ by an order of magnitude because the corpora
+    do; there is no single axis on which a series topping out at 62 papers and
+    one topping out at 652 are both legible.
+
+    READ SHAPE AND TIMING, NOT VERTICAL DISTANCE. Where a solid line sits
+    relative to its dotted partner is set by the 10x scale factor, which is
+    chosen for legibility, not derived from anything. Picking a different
+    factor moves every crossing. Whether a country is over- or
+    under-represented is a question about shares, and the share version of
+    this figure (fig_geo_trends_overlay) is the one that answers it: there,
+    the gap between a country's two lines is the finding.
+
+    What survives the scaling and is worth reading here: when each country's
+    two trajectories inflect, and whether they inflect together.
+    """
+    years = [y for y in sorted(full_by_year)
+             if TREND_START <= y <= DISPLAY_YEAR_MAX]
+
+    fig, ax = plt.subplots(figsize=(DOUBLE_COL * 0.72, 3.3))
+    ax2 = ax.twinx()
+
+    country_handles = []
+    for i, c in enumerate(OVERLAY_COUNTRIES):
+        fl = [full_year[c].get(y, 0) for y in years]
+        ai = [ai_year[c].get(y, 0) for y in years]
+        ax2.plot(years, fl, linestyle=":", color=COLORS[i], linewidth=1.3,
+                 alpha=0.55, zorder=2)
+        line, = ax.plot(years, ai, linestyle="-", color=COLORS[i], linewidth=1.5,
+                        marker="o", markersize=3.2, zorder=3, label=c)
+        country_handles.append(line)
+
+    # Fixed, round limits in a 1:10 ratio so both axes carry clean ticks and
+    # the scale factor is legible from the figure itself.
+    # Headroom above the data so the two legends do not land on the lines.
+    ax.set_ylim(0, 100)
+    ax2.set_ylim(0, 1000)
+    ax.set_yticks(range(0, 71, 10))
+    ax2.set_yticks(range(0, 701, 100))
+
+    ax.set_xlabel("Year")
+    ax.set_ylabel("AI-for-Chips papers  (solid, left)")
+    ax2.set_ylabel("All chip research papers  (dotted, right)")
+    ax.set_title("Country Output: AI-for-Chips vs. the Field")
+    ax.set_xticks(years)
+    ax.spines["top"].set_visible(False)
+    ax2.spines["top"].set_visible(False)
+
+    style_handles = [
+        Line2D([], [], color="#444444", linestyle="-", marker="o",
+               markersize=3.2, linewidth=1.5, label="AI-for-Chips (left)"),
+        Line2D([], [], color="#444444", linestyle=":", linewidth=1.3,
+               alpha=0.7, label="All chip research (right)"),
+    ]
+    leg1 = ax.legend(handles=country_handles, fontsize=6.5, loc="upper left",
+                     ncol=2, title="Country", title_fontsize=6.5)
+    ax.add_artist(leg1)
+    ax.legend(handles=style_handles, fontsize=6.5, loc="upper right",
+              title="Corpus", title_fontsize=6.5)
+    fig.tight_layout()
+    save_figure(fig, "fig_geo_trends_overlay_counts")
+
+
 def fig_trends_facets(ai_year, full_year, ai_by_year, full_by_year):
     """Small multiples: one panel per country, both corpora in each.
 
@@ -327,6 +394,7 @@ def main():
     fig_specialization(ai_total, n_ai, full_total, n_full)
     fig_trends_contrast(ai_year, full_year, ai_by_year, full_by_year)
     fig_trends_overlay(ai_year, full_year, ai_by_year, full_by_year)
+    fig_trends_overlay_counts(ai_year, full_year, ai_by_year, full_by_year)
     fig_trends_facets(ai_year, full_year, ai_by_year, full_by_year)
 
 

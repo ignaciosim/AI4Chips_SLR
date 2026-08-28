@@ -25,7 +25,7 @@ FIGURE_MODULES = [
     ("fig_venues",           "fig_venues_totals.pdf, fig_venues_trends.pdf"),
     ("fig_geo",              "fig_geo_totals.pdf, fig_geo_trends.pdf, fig_geo_periods.pdf"),
     ("fig_geo_all",          "fig_geo_all_totals.pdf, fig_geo_all_trends.pdf, fig_geo_all_regions.pdf"),
-    ("fig_geo_contrast",     "fig_geo_share_contrast.pdf, fig_geo_specialization.pdf, fig_geo_trends_contrast.pdf, fig_geo_trends_overlay.pdf, fig_geo_trends_facets.pdf"),
+    ("fig_geo_contrast",     "fig_geo_share_contrast.pdf, fig_geo_specialization.pdf, fig_geo_trends_contrast.pdf, fig_geo_trends_overlay.pdf, fig_geo_trends_overlay_counts.pdf, fig_geo_trends_facets.pdf"),
     ("fig_citation_impact",  "fig_citation_boxplot.pdf, fig_citation_methods.pdf, fig_citation_tasks.pdf"),
     ("fig_citation_venues",  "fig_citation_venues.pdf"),
     ("fig_method_country",   "fig_method_country_heatmap.pdf"),
