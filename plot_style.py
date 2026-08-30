@@ -268,8 +268,43 @@ if os.environ.get("SLR_FIG_PDF"):
     FIGURE_FORMATS = ["pdf", "png"]
 
 
+# ── Figure routing ────────────────────────────────────────────────
+# Which figures are in the manuscript. save_figure() files these under
+# FIG_DIR/manuscript/ and everything else under FIG_DIR/misc/, so the split
+# survives regeneration -- moving the files by hand would only last until the
+# next `make figures`, because every script writes through save_figure().
+#
+# The captions are the author's own descriptions of each panel, kept here so
+# the mapping from a description in the manuscript to a file on disk does not
+# have to be reconstructed from figure titles a second time.
+MANUSCRIPT_FIGURES = {
+    "fig_method_evolution":    "AI method family trends",
+    "fig_method_stage":        "AI method \u00d7 lifecycle stage",
+    "fig_method_stage_time":   "AI methods vs lifecycle stage (2023-2025)",
+    "fig_method_task_heatmap": "AI method \u00d7 chip development task",
+    "fig_cross_stage":         "Cross-stage coupling",
+    "fig_geo_trends":          "Top 5 contributing countries, trends",
+    "fig_growth_contrast":     "Research corpus growth",
+    "fig_geo_periods":         "Comparison of national contribution (P1 vs P2)",
+    "fig_geo_share_contrast":  "National contribution in AI-for-Chips and all chip research",
+    "fig_geo_specialization":  "National specialization: AI-for-Chips share \u00f7 field share",
+}
+
+MANUSCRIPT_SUBDIR = "manuscript"
+MISC_SUBDIR = "misc"
+
+
+def figure_dir(name):
+    """Directory `name` is written to: the manuscript folder, or misc."""
+    sub = MANUSCRIPT_SUBDIR if name in MANUSCRIPT_FIGURES else MISC_SUBDIR
+    return os.path.join(FIG_DIR, sub)
+
+
 def save_figure(fig, name, formats=None, finish=True):
     """Save the figure to FIG_DIR in each of FIGURE_FORMATS.
+
+    Output lands in FIG_DIR/manuscript/ or FIG_DIR/misc/ depending on whether
+    `name` is in MANUSCRIPT_FIGURES.
 
     `finish` runs the whole-figure polish pass (grid on the measure axis, bar
     tinting) over every axes just before writing. It happens here rather than
@@ -279,9 +314,10 @@ def save_figure(fig, name, formats=None, finish=True):
     """
     if finish:
         finish_figure(fig)
-    os.makedirs(FIG_DIR, exist_ok=True)
+    out_dir = figure_dir(name)
+    os.makedirs(out_dir, exist_ok=True)
     for ext in (formats or FIGURE_FORMATS):
-        path = os.path.join(FIG_DIR, f"{name}.{ext}")
+        path = os.path.join(out_dir, f"{name}.{ext}")
         fig.savefig(path, dpi=400 if ext == "png" else None)
         print(f"  Saved {path}")
     plt.close(fig)

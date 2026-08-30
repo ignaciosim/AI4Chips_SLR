@@ -41,7 +41,7 @@ plot_style.py                ← shared plotting rcParams, palette, and data loa
     │       ├── figures/generate_all_figures.py        ← step 5b: publication figures
     │       │           │                                  (17-module master runner)
     │       │           ▼
-    │       │       figures/fig_*.{pdf,png}
+    │       │       figures/{manuscript,misc}/fig_*.{pdf,png}
     │       │
     │       └── analysis/patent_analysis.py            ← step 5c (optional branch):
     │                   │                                  patent-landscape companion
@@ -290,7 +290,14 @@ default `corpus/`).
 
 ### Stage 5b — figures (in `DATADIR/figures/`)
 
-`figures/fig_*.{pdf,png}` — publication figures (pub-volume, AI methods,
+`figures/manuscript/` — the ten figures printed in the paper.
+`figures/misc/` — everything else: kept, but not in the manuscript.
+Routing is by name, from `MANUSCRIPT_FIGURES` in `plot_style.py`; moving a
+file between the two folders by hand lasts only until the next
+`make figures`, so edit that dict instead. `generate_all_figures.py` prints
+an `n/10` line and names any manuscript figure that failed to appear.
+
+`fig_*.{pdf,png}` — publication figures (pub-volume, AI methods,
 chip tasks, analog/digital split, commercial apps, venues, geography,
 citations, method × country, method × task, emerging topics, growth model,
 task combinations, keyword × country, AI-for-Chips vs. field growth and
@@ -337,6 +344,12 @@ the slots past `COLORS[5]` are a fallback tail and have been reordered once.
 
 **Ink.** Text never wears a series colour — `INK`, `INK_MUTED`, `INK_RULE` are
 the only three weights used for titles, labels and rules.
+
+**Where a figure lands.** `save_figure()` routes by name: a figure listed in
+`MANUSCRIPT_FIGURES` goes to `DATADIR/figures/manuscript/`, everything else to
+`DATADIR/figures/misc/`. The dict maps each name to the author's own
+description of the panel, so the manuscript-to-file mapping does not have to
+be reconstructed from figure titles.
 
 **Helpers to reach for rather than hand-rolling:**
 

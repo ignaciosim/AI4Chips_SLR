@@ -90,6 +90,19 @@ def main():
     import plot_style
     print(f"Output: {plot_style.FIG_DIR}")
 
+    # Report the manuscript set explicitly. A figure that silently stops being
+    # produced is easy to miss when it is one PNG among forty-odd; when it is
+    # one of the ten the paper actually prints, it should be loud.
+    man_dir = os.path.join(plot_style.FIG_DIR, plot_style.MANUSCRIPT_SUBDIR)
+    missing = [n for n in plot_style.MANUSCRIPT_FIGURES
+               if not any(os.path.exists(os.path.join(man_dir, f"{n}.{e}"))
+                          for e in plot_style.FIGURE_FORMATS)]
+    print(f"  {plot_style.MANUSCRIPT_SUBDIR}/: "
+          f"{len(plot_style.MANUSCRIPT_FIGURES) - len(missing)}"
+          f"/{len(plot_style.MANUSCRIPT_FIGURES)} manuscript figures")
+    for n in missing:
+        print(f"    MISSING: {n} \u2014 {plot_style.MANUSCRIPT_FIGURES[n]}")
+
 
 if __name__ == "__main__":
     main()
