@@ -291,7 +291,10 @@ default `corpus/`).
 ### Stage 5b — figures (in `DATADIR/figures/`)
 
 `figures/manuscript/` — the ten figures printed in the paper.
-`figures/misc/` — everything else: kept, but not in the manuscript.
+`figures/misc/` — everything else: kept, but not in the manuscript. Note that
+`fig_prisma_flow` lives here: the PRISMA diagram in the paper was drawn by hand
+from this pipeline's numbers, so the generated one is a cross-check, not the
+manuscript figure.
 Routing is by name, from `MANUSCRIPT_FIGURES` in `plot_style.py`; moving a
 file between the two folders by hand lasts only until the next
 `make figures`, so edit that dict instead. `generate_all_figures.py` prints
