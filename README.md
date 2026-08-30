@@ -308,6 +308,54 @@ linguistic terms, etc.). See
 | `patents_vs_publications.csv`                      | Loose OR-based CPC magnitude reference |
 | `case_study_patents.csv`                           | Targeted inventor probes for named shortlist papers |
 
+## Figure style
+
+Every figure goes through `plot_style.py`; no script sets its own rcParams.
+
+**Type.** Serif throughout, at a Times metric. The stack is
+`Times New Roman → Nimbus Roman → Liberation Serif → STIXGeneral → DejaVu Serif`.
+The fallbacks matter: Times New Roman is not installed on most Linux machines,
+and without them matplotlib resolves silently to DejaVu Serif — the giveaway
+that a figure came out of a stock install. Check what actually resolved with:
+
+```bash
+python3 -c "import plot_style, matplotlib.font_manager as fm; plot_style.apply_style(); \
+            print(fm.findfont(fm.FontProperties(family='serif')))"
+```
+
+**Colour.** Okabe & Ito's hue order with two measured substitutions: wine
+`#882255` replaces the reddish purple (which sat at OKLab ΔE 7.6 from the
+bluish green under deuteranopia, below the ΔE ≥ 8 floor), and the canary yellow
+is out of the sequence entirely (1.32:1 against white — invisible as a stroke on
+paper). Every pair among the first six now clears ΔE 8.6 under protanopia,
+deuteranopia and tritanopia. ColorBrewer Dark2 and Tol's muted set were both
+measured and both fail: Dark2 puts its green and magenta at ΔE 1.7 for a
+deuteranope. **Desaturating the palette to "look more academic" is what breaks
+it** — the CVD separation lives in the lightness ladder, not the hues. Ask for
+colours by name (`COLOR_NEUTRAL`, `COLOR_OTHER`, `COLOR_DARK`), not by index:
+the slots past `COLORS[5]` are a fallback tail and have been reordered once.
+
+**Ink.** Text never wears a series colour — `INK`, `INK_MUTED`, `INK_RULE` are
+the only three weights used for titles, labels and rules.
+
+**Helpers to reach for rather than hand-rolling:**
+
+| Call | What it does |
+|---|---|
+| `year_axis(ax, years)` | horizontal year labels, thinned instead of rotated |
+| `method_label(key)` | ontology key → caption (`METHOD_LABEL`, `_TIGHT` for heatmap axes) |
+| `TASK_LABEL[key]` | same, for chip tasks |
+| `stack_colors(colors)` + `**STACK_EDGE` | stacked areas lifted off full saturation, hairline separators |
+| `style_boxplot(bp, color)` | neutral box/whisker rules, median in the series hue |
+| `add_bar_labels(...)` | muted value labels |
+
+`save_figure()` runs a finishing pass over the whole figure before writing: a
+recessive grid on the measure axis (x for horizontal bars, y otherwise, skipped
+on heatmaps and on the second of a `twinx()` pair) and bar fills tinted to a
+common perceptual lightness with the undiluted hue on the rim. That happens at
+save time rather than in `format_axes()` because scripts call `format_axes()`
+before the bars exist about as often as after.
+
 ## Classification labels
 
 | Label          | Meaning                                             | Ontology pattern                        |

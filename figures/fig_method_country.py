@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from plot_style import (display_methods,
                         apply_style, save_figure, DOUBLE_COL, COLORS,
-                        merge_csv_json)
+                        merge_csv_json, method_label)
 
 
 def main():
@@ -58,7 +58,7 @@ def main():
     ax.set_xticks(range(len(top8)))
     ax.set_xticklabels(top8, rotation=45, ha="right", fontsize=7)
     ax.set_yticks(range(len(methods)))
-    ax.set_yticklabels(methods, fontsize=7)
+    ax.set_yticklabels([method_label(m, tight=True) for m in methods], fontsize=7)
 
     # Annotate cells
     for i in range(len(methods)):

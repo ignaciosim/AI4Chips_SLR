@@ -40,7 +40,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import plot_style  # noqa: E402
 from plot_style import (display_methods,
                         apply_style, save_figure, load_csv_papers,  # noqa: E402
-                        DOUBLE_COL, COLORS)
+                        DOUBLE_COL, COLORS, method_label)
 
 STAGES = ["design", "fabrication", "packaging", "transit", "in_field"]
 LABEL = {"design": "Design", "fabrication": "Fabrication",
@@ -127,7 +127,7 @@ def main():
             [LABEL[s] + ("*" if len(late.get(s, [])) < MIN_STAGE_N else "")
              for s in STAGES], rotation=45, ha="right", fontsize=7)
         a.set_yticks(range(len(methods)))
-        a.set_yticklabels([m.replace("_", " ") for m in methods], fontsize=7)
+        a.set_yticklabels([method_label(m, tight=True) for m in methods], fontsize=7)
         for sp in a.spines.values():
             sp.set_visible(False)
         a.tick_params(length=0)

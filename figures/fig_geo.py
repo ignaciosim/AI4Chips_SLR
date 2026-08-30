@@ -95,7 +95,7 @@ def main():
 
     x = np.arange(len(top8))
     w = 0.35
-    bars_e = ax.barh(x - w / 2, early_pct, w, label="2015\u20132020", color=COLORS[5])
+    bars_e = ax.barh(x - w / 2, early_pct, w, label="2015\u20132020", color=COLORS[0])
     bars_l = ax.barh(x + w / 2, late_pct, w, label="2021\u20132025", color=COLORS[1])
     ax.invert_yaxis()
     ax.set_xlabel("Share of Papers (%)")

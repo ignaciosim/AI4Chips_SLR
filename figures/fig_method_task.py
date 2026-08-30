@@ -9,22 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 from plot_style import (display_methods,
                         apply_style, save_figure, DOUBLE_COL, COLORS,
-                        TASK_LABEL, load_csv_papers)
-
-METHOD_LABEL = {
-    "deep_learning": "Deep Learning",
-    "classical_ml": "Classical ML",
-    "graph_neural_networks": "GNN",
-    "general_ml_signals": "General ML",
-    "bayesian_probabilistic": "Bayesian",
-    "reinforcement_learning": "RL",
-    "llm_foundation_models": "LLM / Foundation",
-    "evolutionary_optimization": "Evolutionary Opt.",
-    "symbolic_reasoning": "Symbolic",
-    "generative_adversarial": "GAN",
-    "transfer_learning": "Transfer Learning",
-    "anomaly_detection": "Anomaly Detection",
-}
+                        TASK_LABEL, METHOD_LABEL_TIGHT, load_csv_papers)
 
 
 def main():
@@ -56,7 +41,7 @@ def main():
         for j, t in enumerate(tasks):
             matrix[i, j] = cross.get((m, t), 0)
 
-    mlabels = [METHOD_LABEL.get(m, m) for m in methods]
+    mlabels = [METHOD_LABEL_TIGHT.get(m, m) for m in methods]
     tlabels = [TASK_LABEL.get(t, t) for t in tasks]
 
     fig, ax = plt.subplots(figsize=(DOUBLE_COL, DOUBLE_COL * 0.52))

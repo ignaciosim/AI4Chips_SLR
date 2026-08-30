@@ -10,7 +10,7 @@ from matplotlib.ticker import FixedLocator
 from plot_style import (display_methods,
                         apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, TASK_LABEL, VENUE_ALIASES,
-                        merge_csv_json, is_survey)
+                        merge_csv_json, is_survey, year_axis, method_label, style_boxplot)
 
 
 def main():
@@ -37,13 +37,9 @@ def main():
     fig, ax = plt.subplots(figsize=(SINGLE_COL, 3.5))
     box_data = [year_cites[y] for y in all_years]
     bp = ax.boxplot(box_data, positions=range(len(all_years)),
-                    widths=0.6, patch_artist=True,
-                    showfliers=True, flierprops=dict(markersize=2, alpha=0.5))
-    for patch in bp["boxes"]:
-        patch.set_facecolor(COLORS[5])
-        patch.set_alpha(0.7)
-    ax.set_xticks(range(len(all_years)))
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+                    widths=0.6, patch_artist=True, showfliers=True)
+    style_boxplot(bp, COLORS[0])
+    year_axis(ax, all_years, positions=range(len(all_years)))
     ax.set_xlabel("Publication Year")
     ax.set_ylabel("Citations")
     ax.set_title("Citations by Year")
@@ -54,7 +50,7 @@ def main():
     # ── Horizontal bar: mean cites by AI method ────────────────────────────
     method_sorted = sorted(method_cites.items(),
                            key=lambda x: -(sum(x[1]) / len(x[1])))
-    m_labels = [m for m, _ in method_sorted]
+    m_labels = [method_label(m) for m, _ in method_sorted]
     m_means = [sum(c) / len(c) for _, c in method_sorted]
     m_ns = [len(c) for _, c in method_sorted]
 

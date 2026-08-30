@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from plot_style import (DISPLAY_YEAR_MAX,
                         apply_style, save_figure, format_axes, SINGLE_COL,
-                        COLORS, load_csv_papers, classify_analog_digital)
+                        COLORS, load_csv_papers, classify_analog_digital, year_axis, COLOR_NEUTRAL)
 
 CATEGORIES = ["digital", "analog", "both", "domain-agnostic"]
 CAT_DISPLAY = {
@@ -21,7 +21,7 @@ CAT_COLORS = {
     "digital": COLORS[0],
     "analog": COLORS[1],
     "both": COLORS[2],
-    "domain-agnostic": COLORS[9],  # gray
+    "domain-agnostic": COLOR_NEUTRAL,
 }
 
 
@@ -49,7 +49,8 @@ def main():
     colors = [CAT_COLORS[c] for c in CATEGORIES]
 
     wedges, texts = ax.pie(sizes, labels=labels, colors=colors,
-                            startangle=90, wedgeprops=dict(width=0.45),
+                            startangle=90, wedgeprops=dict(width=0.45, edgecolor="white",
+                                                  linewidth=1.0),
                             textprops={"fontsize": 7})
     ax.set_title("Domain Split", pad=12)
     fig.tight_layout()
@@ -71,8 +72,7 @@ def main():
                color=CAT_COLORS[cat])
         bottoms += vals
 
-    ax.set_xticks(x)
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+    year_axis(ax, all_years, positions=x)
     ax.set_xlabel("Year")
     ax.set_ylabel("Number of Papers")
     ax.set_title("Domain Composition Over Time")

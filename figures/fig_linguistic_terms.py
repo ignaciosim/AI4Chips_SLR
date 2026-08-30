@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator, MaxNLocator
 import plot_style
 from plot_style import (apply_style, save_figure, format_axes, SINGLE_COL,
-                        COLORS, load_csv_papers)
+                        COLORS, load_csv_papers, stack_colors, STACK_EDGE)
 
 # ── paths ────────────────────────────────────────────────────────────────
 from pathlib import Path
@@ -168,7 +168,8 @@ def main():
     stacks = [pct4[t] for t in ordered]
     colors = COLORS[:len(ordered)]
 
-    ax.stackplot(years4, *stacks, labels=ordered, colors=colors, alpha=0.82)
+    ax.stackplot(years4, *stacks, labels=ordered,
+                 colors=stack_colors(colors), **STACK_EDGE)
     ax.set_xlabel("Year")
     ax.set_ylabel("Titles Containing Term (%)")
     ax.set_title("ML Terminology Landscape (N={:,})".format(sum(n_papers4)))

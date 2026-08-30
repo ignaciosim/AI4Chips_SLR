@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from collections import Counter
 import matplotlib.pyplot as plt
 from plot_style import (apply_style, save_figure, format_axes, DOUBLE_COL,
-                        COLORS, load_csv_papers, cagr)
+                        COLORS, INK_MUTED, load_csv_papers, cagr, year_axis)
 
 
 def main():
@@ -36,35 +36,36 @@ def main():
     # Bar chart
     bars = ax1.bar(all_years, vals, color=COLORS[0], width=0.7, zorder=3)
     ax1.set_xlabel("Publication Year")
-    ax1.set_ylabel("Number of Papers", color=COLORS[0])
-    ax1.tick_params(axis="y", labelcolor=COLORS[0])
+    # The axis titles say which series they belong to; colouring the words
+    # as well is a dashboard habit that just adds two more hues to the page.
+    ax1.set_ylabel("Papers per year")
     format_axes(ax1)
-    ax1.set_xticks(all_years)
-    ax1.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+    year_axis(ax1, all_years)
 
-    # Add count labels on bars
-    for bar, val in zip(bars, vals):
-        if val > 0:
-            ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.5,
-                     str(val), ha="center", va="bottom", fontsize=7)
+    # Value labels are a lookup aid, not the data: muted, and only on the
+    # endpoints and the peak. A number over every bar duplicates what the grid
+    # already says and crowds the cumulative line where the two cross.
+    mark = {0, len(vals) - 1, max(range(len(vals)), key=lambda i: vals[i])}
+    for i, (bar, val) in enumerate(zip(bars, vals)):
+        if i in mark and val > 0:
+            ax1.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 1.5,
+                     str(val), ha="center", va="bottom", fontsize=7,
+                     color=INK_MUTED)
 
     # Cumulative line on secondary axis
     ax2 = ax1.twinx()
     ax2.plot(all_years, cumulative, color=COLORS[1], marker="o",
-             markersize=4, linewidth=1.5, zorder=4)
-    ax2.set_ylabel("Cumulative Papers", color=COLORS[1])
-    ax2.tick_params(axis="y", labelcolor=COLORS[1])
+             markersize=2.8, linewidth=1.1, zorder=4)
+    ax2.set_ylabel("Cumulative papers")
     ax2.spines["top"].set_visible(False)
 
     # CAGR annotation
     if rate is not None:
-        ax1.annotate(f"CAGR = {rate:+.0%}\n({start_y}\u2013{end_y})",
-                     xy=(all_years[-1], vals[-1]),
-                     xytext=(-50, 20), textcoords="offset points",
-                     fontsize=8, fontstyle="italic",
-                     arrowprops=dict(arrowstyle="->", color="gray", lw=0.8))
+        ax1.text(0.02, 0.93, f"CAGR {rate:+.0%} ({start_y}\u2013{end_y})",
+                 transform=ax1.transAxes, fontsize=8, color=INK_MUTED,
+                 ha="left", va="top")
 
-    ax1.set_title("AI for Chips Publication Volume (N = {})".format(len(papers)))
+    ax1.set_title("AI-for-Chips publication volume (N = {})".format(len(papers)))
     fig.tight_layout()
     save_figure(fig, "fig_pub_volume")
 

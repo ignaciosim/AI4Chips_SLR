@@ -18,6 +18,9 @@ from collections import Counter, defaultdict
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from matplotlib.collections import QuadMesh
+from matplotlib.patches import Rectangle
 from matplotlib.ticker import MaxNLocator
 
 # ── Paths ────────────────────────────────────────────────────────────────────
@@ -55,50 +58,202 @@ def set_data_dir(path):
 SINGLE_COL = 3.5   # inches — single-column journal width
 DOUBLE_COL = 7.0   # inches — double-column journal width
 
-# ── Colorblind-safe palette (Wong 2011 + extensions) ────────────────────────
-
+# ── Colorblind-safe palette (Okabe & Ito 2011, two substitutions) ───────
+#
+# The hue angles are Wong's, kept deliberately: of the qualitative sets in
+# common academic use, his is the only one that survives simulation here.
+# ColorBrewer Dark2 puts its green and magenta at OKLab dE 1.7 under
+# deuteranopia -- indistinguishable -- and Tol's muted set drops a pair to
+# 5.2. Two changes to the published order, both to fix measured defects:
+#
+#   * slot 4, reddish purple #CC79A7 -> wine #882255. Wong's pink sits at
+#     dE 7.6 from the bluish green in slot 3 for a deuteranope, under the
+#     dE >= 8 floor. The wine lifts that pair to 18.3 and brings every pair
+#     among the first six to >= 8.6 across protan, deutan and tritan.
+#   * canary yellow #F0E442 leaves the sequence. At 1.32:1 against white it
+#     is invisible as a stroke on paper. Neutrals take the tail slots, where
+#     a seventh series is a fallback rather than a design.
+#
+# Checked with a Machado (2009) CVD simulation scored in OKLab. Do not edit a
+# hex here without re-running that check -- desaturating the set "to look more
+# academic" is exactly what breaks it, because the CVD separation lives in the
+# lightness ladder, not the hues.
 COLORS = [
     "#0072B2",  # blue
     "#D55E00",  # vermillion
     "#009E73",  # bluish green
-    "#CC79A7",  # reddish purple
+    "#882255",  # wine
     "#E69F00",  # orange
     "#56B4E9",  # sky blue
-    "#F0E442",  # yellow
-    "#000000",  # black
+    "#4C4C4C",  # dark grey
     "#8C564B",  # brown
-    "#7F7F7F",  # gray
+    "#7F7F7F",  # grey
     "#17BECF",  # cyan
     "#BCBD22",  # olive
+    "#000000",  # black
 ]
 
-COLOR_OTHER = "#AAAAAA"  # gray for "Other" category
+COLOR_OTHER = "#AAAAAA"    # "Other" / residual category
+COLOR_NEUTRAL = "#7F7F7F"  # a baseline series that is context, not a finding
+COLOR_DARK = "#4C4C4C"     # a single emphasised series with no hue to spare
 
-# ── Style setup ──────────────────────────────────────────────────────────────
+# Ask for these by name, never by index. The slots past COLORS[5] are a
+# fallback tail and have been reordered once already; a script that reaches
+# for COLORS[9] "because it is the grey one" breaks silently when it moves.
+
+# ── Ink ────────────────────────────────────────────────────────────
+# Text never wears a series colour: identity belongs to the mark beside the
+# label, not to the label. Three weights of neutral is all a journal figure
+# needs, and a coloured axis label is the fastest way to make one look like a
+# dashboard.
+INK       = "#1A1A1A"   # titles, axis labels, tick labels
+INK_MUTED = "#5A5A5A"   # annotations, value labels, secondary notes
+INK_RULE  = "#4D4D4D"   # spines and tick marks
+GRID_COLOR = "#DDDDDD"
+
+# Serif stack. "Times New Roman" is what the journal asks for but is not
+# installed on most Linux machines; without the fallbacks below matplotlib
+# resolves silently to DejaVu Serif, whose wide, low-contrast letterforms are
+# the single clearest tell that a figure came out of a stock matplotlib. Nimbus
+# Roman and Liberation Serif are metric-compatible Times clones; STIXGeneral
+# ships inside matplotlib itself, so the stack always lands on a Times-like
+# face rather than falling through.
+SERIF_STACK = ["Times New Roman", "Nimbus Roman", "Liberation Serif",
+               "STIXGeneral", "DejaVu Serif", "serif"]
+
+# Bars are drawn as a tint of their own hue with the undiluted colour on the
+# rim. A bar flooded with a saturated fill is the loudest object on the page.
+BAR_FACE_L = 0.82   # target perceptual lightness (OKLab L) for a bar face
+BAR_MAX_TINT = 0.68  # never wash a hue out past this, however dark it started
+BAR_EDGE_LW = 0.7
+
+
+def tint(color, amount):
+    """Mix `amount` of white into `color`. amount=0 -> unchanged, 1 -> white."""
+    r, g, b = mcolors.to_rgb(color)
+    return (r + (1 - r) * amount,
+            g + (1 - g) * amount,
+            b + (1 - b) * amount)
+
+
+def _oklab_l(rgb):
+    """Perceptual lightness of an sRGB triple (Ottosson's OKLab L)."""
+    lin = [c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+           for c in rgb]
+    r, g, b = lin
+    l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b
+    m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b
+    q = 0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b
+    l, m, q = (max(v, 0) ** (1 / 3) for v in (l, m, q))
+    return 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * q
+
+
+def tint_to_lightness(color, target=BAR_FACE_L, max_amount=BAR_MAX_TINT):
+    """Mix in only as much white as the hue needs to reach `target` lightness.
+
+    A fixed mix ratio is the wrong instrument here: the palette spans OKLab L
+    0.43 (wine) to 0.75 (orange), so a flat 45% white leaves the wine solid and
+    bleaches the sky blue to nearly nothing. Aiming at a lightness instead
+    gives every bar face the same visual weight across every figure, and the
+    undiluted hue stays on the rim to carry the identity.
+    """
+    rgb = mcolors.to_rgb(color)
+    if _oklab_l(rgb) >= target:
+        return rgb
+    lo, hi = 0.0, max_amount
+    for _ in range(20):
+        mid = (lo + hi) / 2
+        if _oklab_l(tint(rgb, mid)) < target:
+            lo = mid
+        else:
+            hi = mid
+    return tint(rgb, hi)
+
+
+# ── Style setup ───────────────────────────────────────────────────
+
+def stack_colors(colors, amount=0.12):
+    """Slightly lift stacked-area fills off full saturation.
+
+    A stacked area is a wall of flat colour -- at full strength six of them
+    fight each other and the page. A touch of white keeps the hue identity
+    (and the CVD separation, which is measured on the source hues) while
+    letting the boundaries do the work of telling the bands apart.
+    """
+    return [tint(c, amount) for c in colors]
+
+
+# Pass with stackplot(): a hairline of the page colour between bands, so
+# adjacent fills read as separate objects rather than one shape changing hue.
+STACK_EDGE = {"edgecolor": "white", "linewidth": 0.6}
+
 
 def apply_style():
     """Apply publication-quality rcParams."""
     plt.rcParams.update({
+        # Type
         "font.family": "serif",
-        "font.serif": ["Times New Roman", "DejaVu Serif", "serif"],
+        "font.serif": SERIF_STACK,
+        "mathtext.fontset": "stix",
         "font.size": 9,
-        "axes.titlesize": 10,
+        "axes.titlesize": 9.5,
+        "axes.titleweight": "normal",
+        "axes.titlelocation": "left",
+        "axes.titlepad": 6.0,
         "axes.labelsize": 9,
+        "axes.labelpad": 3.0,
         "xtick.labelsize": 8,
         "ytick.labelsize": 8,
         "legend.fontsize": 7.5,
         "legend.frameon": False,
+        "legend.handlelength": 1.6,
+        "legend.handletextpad": 0.5,
+        "legend.labelspacing": 0.35,
+        "legend.columnspacing": 1.1,
+        "legend.borderpad": 0.2,
+        # Ink
+        "text.color": INK,
+        "axes.labelcolor": INK,
+        "axes.titlecolor": INK,
+        "axes.edgecolor": INK_RULE,
+        "xtick.color": INK_RULE,
+        "ytick.color": INK_RULE,
+        "xtick.labelcolor": INK,
+        "ytick.labelcolor": INK,
+        # Rules: thin, recessive, and behind the data
         "axes.spines.top": False,
         "axes.spines.right": False,
-        "axes.linewidth": 0.6,
-        "xtick.major.width": 0.6,
-        "ytick.major.width": 0.6,
-        "lines.linewidth": 1.2,
-        "lines.markersize": 4,
+        "axes.linewidth": 0.5,
+        "axes.axisbelow": True,
+        "xtick.major.width": 0.5,
+        "ytick.major.width": 0.5,
+        "xtick.major.size": 2.5,
+        "ytick.major.size": 2.5,
+        "xtick.major.pad": 2.5,
+        "ytick.major.pad": 2.5,
+        "xtick.minor.width": 0.4,
+        "ytick.minor.width": 0.4,
+        "xtick.minor.size": 1.5,
+        "ytick.minor.size": 1.5,
+        "grid.color": GRID_COLOR,
+        "grid.linewidth": 0.5,
+        "grid.alpha": 1.0,
+        "axes.grid": False,   # finish_axes() enables the one axis that helps
+        # Marks
+        "lines.linewidth": 1.1,
+        "lines.markersize": 3.2,
+        "lines.markeredgewidth": 0.0,
+        "lines.solid_capstyle": "round",
+        "patch.linewidth": 0.6,
+        "hatch.linewidth": 0.5,
+        # Output
+        "figure.facecolor": "white",
+        "axes.facecolor": "white",
         "figure.dpi": 150,
-        "savefig.dpi": 300,
+        "savefig.dpi": 400,
+        "savefig.facecolor": "white",
         "savefig.bbox": "tight",
-        "savefig.pad_inches": 0.05,
+        "savefig.pad_inches": 0.03,
         "pdf.fonttype": 42,       # TrueType in PDF (editable text)
         "ps.fonttype": 42,
     })
@@ -113,12 +268,21 @@ if os.environ.get("SLR_FIG_PDF"):
     FIGURE_FORMATS = ["pdf", "png"]
 
 
-def save_figure(fig, name, formats=None):
-    """Save the figure to FIG_DIR in each of FIGURE_FORMATS."""
+def save_figure(fig, name, formats=None, finish=True):
+    """Save the figure to FIG_DIR in each of FIGURE_FORMATS.
+
+    `finish` runs the whole-figure polish pass (grid on the measure axis, bar
+    tinting) over every axes just before writing. It happens here rather than
+    in format_axes() because scripts call format_axes() at whatever point suits
+    them -- often before the bars exist -- whereas at save time the figure is
+    complete and the pass can read what was actually drawn.
+    """
+    if finish:
+        finish_figure(fig)
     os.makedirs(FIG_DIR, exist_ok=True)
     for ext in (formats or FIGURE_FORMATS):
         path = os.path.join(FIG_DIR, f"{name}.{ext}")
-        fig.savefig(path, dpi=300 if ext == "png" else None)
+        fig.savefig(path, dpi=400 if ext == "png" else None)
         print(f"  Saved {path}")
     plt.close(fig)
 
@@ -130,8 +294,126 @@ def format_axes(ax):
     ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
 
-def add_bar_labels(ax, bars, fmt="{:.0f}", fontsize=7, offset=0.5):
-    """Add value labels to bars."""
+# ── Finishing pass ────────────────────────────────────────────────
+
+def _bar_patches(ax):
+    """Rectangles that came from ax.bar/ax.barh, in data-unit form."""
+    return [p for p in ax.patches if isinstance(p, Rectangle) and p.get_label() != "_nolegend_bg"]
+
+
+def _bar_orientation(ax):
+    """'h', 'v', or None. Uses the same width>height test as add_bar_labels."""
+    bars = _bar_patches(ax)
+    if not bars:
+        return None
+    horiz = sum(1 for b in bars if b.get_width() > b.get_height())
+    return "h" if horiz > len(bars) / 2 else "v"
+
+
+def _has_raster(ax):
+    """True for heatmaps -- an image or mesh would sit on top of a grid."""
+    if ax.images:
+        return True
+    return any(isinstance(c, QuadMesh) for c in ax.collections)
+
+
+def soften_bars(ax, edge_lw=BAR_EDGE_LW):
+    """Repaint solid bars as a tint of their hue with the full colour on the rim.
+
+    The hue still carries identity and the crisp edge gives the eye something
+    to measure against, but the fill stops shouting. Patches the script already
+    gave an edge colour are left alone -- that is a deliberate choice upstream.
+    """
+    for p in _bar_patches(ax):
+        if getattr(p, "_slr_softened", False):
+            continue
+        face = p.get_facecolor()
+        edge = p.get_edgecolor()
+        if face[3] == 0:            # unfilled: nothing to soften
+            continue
+        if edge[3] > 0 and tuple(edge[:3]) != tuple(face[:3]):
+            continue                # script set its own edge; respect it
+        base = face[:3]
+        p.set_edgecolor(base)
+        p.set_linewidth(edge_lw)
+        p.set_facecolor(tuple(tint_to_lightness(base)) + (face[3],))
+        p._slr_softened = True
+
+
+def style_boxplot(bp, color=None, median_color=None):
+    """Give a patch_artist boxplot the same ink as the rest of the figures.
+
+    matplotlib's stock boxplot draws heavy near-black box, whisker and cap
+    lines and a median in its own default orange -- a hue from a palette this
+    project does not use, sitting on top of every box. Here the structure goes
+    to the thin neutral rule colour and the median carries the series hue,
+    which is the one line in a box that is actually a measurement.
+    """
+    color = color or COLORS[0]
+    face = tuple(tint_to_lightness(color))
+    for patch in bp.get("boxes", []):
+        patch.set_facecolor(face)
+        patch.set_edgecolor(INK_RULE)
+        patch.set_linewidth(0.6)
+        patch.set_alpha(1.0)
+    for key in ("whiskers", "caps"):
+        for line in bp.get(key, []):
+            line.set_color(INK_RULE)
+            line.set_linewidth(0.6)
+    for line in bp.get("medians", []):
+        line.set_color(median_color or color)
+        line.set_linewidth(1.1)
+    for pt in bp.get("fliers", []):
+        pt.set_marker("o")
+        pt.set_markersize(2.0)
+        pt.set_markerfacecolor("none")
+        pt.set_markeredgecolor(INK_MUTED)
+        pt.set_markeredgewidth(0.4)
+        pt.set_alpha(0.7)
+    return bp
+
+
+def finish_axes(ax, grid="auto", bars=True):
+    """Recessive grid on the measure axis, softened bar fills.
+
+    grid: "auto" reads the axes' own bars -- horizontal bars want the rule
+    running across them (x), everything else wants it behind them (y). Pass
+    "x"/"y"/"both"/None to override. Heatmaps are skipped: their image would
+    cover the grid anyway.
+    """
+    if _has_raster(ax):
+        return
+    if bars:
+        soften_bars(ax)
+    if grid == "auto":
+        grid = "x" if _bar_orientation(ax) == "h" else "y"
+    if grid:
+        ax.set_axisbelow(True)
+        ax.grid(True, axis=grid, color=GRID_COLOR, linewidth=0.5, zorder=0)
+
+
+def finish_figure(fig, grid="auto"):
+    """Run finish_axes() over a figure, once per physical axes position.
+
+    A twinx() pair occupies one position; gridding both draws two sets of rules
+    at unrelated y values, which is worse than no grid at all. The first axes
+    at a position gets the grid, its twin gets bar softening only.
+    """
+    seen = set()
+    for ax in fig.axes:
+        key = tuple(round(v, 4) for v in ax.get_position().bounds)
+        first = key not in seen
+        seen.add(key)
+        finish_axes(ax, grid=grid if first else None)
+
+
+def add_bar_labels(ax, bars, fmt="{:.0f}", fontsize=6.5, offset=0.5,
+                   color=INK_MUTED):
+    """Add value labels to bars.
+
+    Muted by default: the bar carries the magnitude, the number is a lookup
+    aid. Black numerals at body size compete with the data they annotate.
+    """
     for bar in bars:
         val = bar.get_width() if bar.get_width() != 0 else bar.get_height()
         if val == 0:
@@ -139,11 +421,14 @@ def add_bar_labels(ax, bars, fmt="{:.0f}", fontsize=7, offset=0.5):
         if bar.get_width() > bar.get_height():
             # horizontal bar
             ax.text(bar.get_width() + offset, bar.get_y() + bar.get_height() / 2,
-                    fmt.format(val), va="center", ha="left", fontsize=fontsize)
+                    fmt.format(val), va="center", ha="left", fontsize=fontsize,
+                    color=color)
         else:
             # vertical bar
             ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + offset,
-                    fmt.format(val), va="bottom", ha="center", fontsize=fontsize)
+                    fmt.format(val), va="bottom", ha="center", fontsize=fontsize,
+                    color=color)
+
 
 
 # ── Shared constants ─────────────────────────────────────────────────────────
@@ -169,6 +454,75 @@ TASK_LABEL_SHORT = {
 }
 
 TASK_LABEL = {k: TASK_LABEL_SHORT.get(k, v.label) for k, v in _CHIP_TASKS.items()}
+
+# Method display labels, on the same footing as TASK_LABEL: the ontology key is
+# an identifier, not a caption, and "general_ml_signals" printed on an axis is
+# the clearest sign a figure is showing its own plumbing. Two registers --
+# METHOD_LABEL reads as prose in a legend or a bar label, METHOD_LABEL_TIGHT is
+# for a heatmap axis where a long name would have to be rotated to fit.
+from slr_ontology import AI_METHODS as _AI_METHODS  # noqa: E402
+
+METHOD_LABEL_OVERRIDE = {
+    # The ontology name is right but too long for a figure axis.
+    "evolutionary_optimization": "Evolutionary Optimization",
+    "generative_adversarial":    "GANs",
+}
+
+METHOD_LABEL = {k: METHOD_LABEL_OVERRIDE.get(k, v.label)
+                for k, v in _AI_METHODS.items()}
+
+METHOD_LABEL_TIGHT = {
+    "deep_learning":             "Deep Learning",
+    "classical_ml":              "Classical ML",
+    "graph_neural_networks":     "GNN",
+    "general_ml_signals":        "General ML",
+    "bayesian_probabilistic":    "Bayesian",
+    "reinforcement_learning":    "RL",
+    "llm_foundation_models":     "LLM / Foundation",
+    "evolutionary_optimization": "Evolutionary Opt.",
+    "symbolic_reasoning":        "Symbolic",
+    "generative_adversarial":    "GAN",
+    "transfer_learning":         "Transfer Learning",
+    "anomaly_detection":         "Anomaly Detection",
+}
+
+
+def method_label(key, tight=False):
+    """Display name for an AI-method key. Falls back to a de-slugged key."""
+    table = METHOD_LABEL_TIGHT if tight else METHOD_LABEL
+    return table.get(key) or METHOD_LABEL.get(key) or key.replace("_", " ").title()
+
+
+def year_axis(ax, years, positions=None, max_labels=7, fontsize=None):
+    """Label a year axis horizontally, thinning rather than rotating.
+
+    A rotated year label is a symptom, not a style -- four digits only collide
+    because every single year is being labelled. Label every k-th year, keep
+    the rest as minor ticks so the reader still sees the full grid, and always
+    keep the last year, which anchors how a trend gets read.
+
+    `positions` is for axes where x is an index rather than the year itself
+    (grouped bars, box plots): pass the same sequence handed to set_xticks().
+    """
+    years = list(years)
+    if not years:
+        return
+    pos = list(positions) if positions is not None else list(years)
+    step = max(1, -(-len(years) // max_labels))
+    keep = list(range(0, len(years), step))
+    if keep[-1] != len(years) - 1:
+        # the final year always earns a label; absorb it into the last slot
+        # rather than appending a tick a fraction of a step away from it
+        if len(years) - 1 - keep[-1] < step and len(keep) > 1:
+            keep[-1] = len(years) - 1
+        else:
+            keep.append(len(years) - 1)
+    ax.set_xticks([pos[i] for i in keep])
+    ax.set_xticklabels([str(years[i]) for i in keep], rotation=0, ha="center",
+                       **({"fontsize": fontsize} if fontsize else {}))
+    if step > 1:
+        ax.set_xticks(pos, minor=True)
+
 
 # Method-axis display filter. anomaly_detection is an AI_METHODS class, so it
 # participates in the M predicate that admits papers to the corpus, but unlike

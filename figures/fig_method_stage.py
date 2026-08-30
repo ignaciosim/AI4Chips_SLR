@@ -32,7 +32,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import plot_style  # noqa: E402
 from plot_style import (display_methods,
                         apply_style, save_figure, load_csv_papers,  # noqa: E402
-                        DOUBLE_COL, COLORS)
+                        DOUBLE_COL, COLORS, method_label)
 
 STAGES = ["design", "fabrication", "packaging", "transit", "in_field",
           "disposal"]
@@ -81,7 +81,7 @@ def main():
     ax.set_xticklabels([f"{LABEL[s]}\n(n={stage_n[s]})" for s in stages],
                        rotation=45, ha="right", fontsize=7)
     ax.set_yticks(range(len(methods)))
-    ax.set_yticklabels([m.replace("_", " ") for m in methods], fontsize=7)
+    ax.set_yticklabels([method_label(m, tight=True) for m in methods], fontsize=7)
 
     vmax = matrix.max() if matrix.size else 1
     for i in range(len(methods)):

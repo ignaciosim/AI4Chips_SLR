@@ -9,7 +9,7 @@ from matplotlib.ticker import FixedLocator
 from plot_style import (DISPLAY_YEAR_MAX,
                         apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, COLOR_OTHER, CAT_LABEL, COMMERCIAL_CATS,
-                        load_csv_papers, classify_commercial)
+                        load_csv_papers, classify_commercial, year_axis, tint, STACK_EDGE)
 
 
 def main():
@@ -75,13 +75,12 @@ def main():
         stack_colors.append(COLOR_OTHER)
 
     ax.stackplot(all_years, *stacks, labels=stack_labels,
-                 colors=stack_colors, alpha=0.85)
+                 colors=[tint(c, 0.12) for c in stack_colors], **STACK_EDGE)
     ax.set_xlabel("Year")
     ax.set_ylabel("Number of Papers")
     ax.set_title("Application Area Over Time")
     ax.legend(loc="upper left", fontsize=6, ncol=1)
-    ax.set_xticks(all_years)
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+    year_axis(ax, all_years)
     format_axes(ax)
     fig.tight_layout()
     save_figure(fig, "fig_commercial_apps_trends")

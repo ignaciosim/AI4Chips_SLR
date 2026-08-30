@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
 from plot_style import (apply_style, save_figure, format_axes,
                         SINGLE_COL, COLORS, is_survey,
-                        load_json_papers, load_jsonl_papers)
+                        load_json_papers, load_jsonl_papers, COLOR_NEUTRAL)
 
 # Survey / review detection.
 #
@@ -68,7 +68,7 @@ def main():
 
     # --- Panel A: Empirical CDF ---
     for data, label, color in [
-        (full, f"Full corpus (N={len(full):,})", COLORS[7]),
+        (full, f"Full corpus (N={len(full):,})", COLOR_NEUTRAL),
         (ai4,  f"AI4chips (N={len(ai4)})",       COLORS[0]),
     ]:
         arr = np.array(data)
@@ -114,7 +114,7 @@ def main():
     w = 0.35
     bars1 = ax2.bar(x - w / 2, ai4_vals, w, color=COLORS[0], label="AI4chips",
                      alpha=0.85)
-    bars2 = ax2.bar(x + w / 2, full_vals, w, color=COLORS[7], label="Full corpus",
+    bars2 = ax2.bar(x + w / 2, full_vals, w, color=COLOR_NEUTRAL, label="Full corpus",
                      alpha=0.55)
 
     ax2.set_xticks(x)

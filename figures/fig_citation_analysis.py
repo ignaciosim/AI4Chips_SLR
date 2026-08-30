@@ -18,7 +18,7 @@ from matplotlib.ticker import FixedLocator, MaxNLocator
 from plot_style import (display_methods,
                         apply_style, save_figure, format_axes, add_bar_labels,
                         SINGLE_COL, COLORS, TASK_LABEL, SHORT_VENUE,
-                        merge_csv_json, is_survey)
+                        merge_csv_json, is_survey, year_axis, method_label, style_boxplot)
 
 CURRENT_YEAR = 2025
 
@@ -351,19 +351,13 @@ def main():
     fig, ax = plt.subplots(figsize=(SINGLE_COL, 2.4))
     box_data = [year_cites[y] for y in all_years]
     bp = ax.boxplot(box_data, positions=range(len(all_years)),
-                    widths=0.6, patch_artist=True,
-                    showfliers=True,
-                    flierprops=dict(markersize=2, alpha=0.4))
-    for patch in bp["boxes"]:
-        patch.set_facecolor(COLORS[5])
-        patch.set_alpha(0.7)
+                    widths=0.6, patch_artist=True, showfliers=True)
+    style_boxplot(bp, COLORS[0])
     # overlay N labels
     for i, y in enumerate(all_years):
         n = len(year_cites[y])
         ax.text(i, -8, f"n={n}", ha="center", fontsize=5, color="gray")
-    ax.set_xticks(range(len(all_years)))
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right",
-                       fontsize=6.5)
+    year_axis(ax, all_years, positions=range(len(all_years)), fontsize=6.5)
     ax.set_ylabel("Citations")
     ax.set_title("Citations by Publication Year")
     format_axes(ax)
@@ -403,7 +397,7 @@ def main():
     save_figure(fig, "fig_cite_concentration")
 
     # ── 3. Horizontal bar: mean cites by AI method ───────────────────────
-    m_labels = [m.replace("_", " ") for m, _ in m_sorted]
+    m_labels = [method_label(m) for m, _ in m_sorted]
     m_means = [sum(c) / len(c) for _, c in m_sorted]
     m_ns = [len(c) for _, c in m_sorted]
     m_medians = [sorted(c)[len(c) // 2] for _, c in m_sorted]

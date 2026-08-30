@@ -8,7 +8,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from plot_style import (apply_style, save_figure, format_axes, DOUBLE_COL,
                         COLORS, load_csv_papers, matches_topic,
-                        SOFT_ERROR_KW, SOFT_ERROR_EXCLUDE, DEPOSITION_KW)
+                        SOFT_ERROR_KW, SOFT_ERROR_EXCLUDE, DEPOSITION_KW, year_axis)
 
 TOPICS = {
     "soft_error": {
@@ -56,8 +56,7 @@ def main():
                 ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.1,
                         str(val), ha="center", va="bottom", fontsize=6.5)
 
-    ax.set_xticks(x + width / 2)
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+    year_axis(ax, all_years, positions=x + width / 2)
     ax.set_xlabel("Year")
     ax.set_ylabel("Number of Papers")
     ax.set_title("Emerging Topics Over Time")

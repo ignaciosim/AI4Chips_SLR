@@ -10,7 +10,7 @@ from matplotlib.ticker import FixedLocator
 from plot_style import (DISPLAY_YEAR_MAX,
                         apply_style, save_figure, format_axes, SINGLE_COL,
                         COLORS, COLOR_OTHER, VENUE_ALIASES,
-                        load_jsonl_papers, get_region)
+                        load_jsonl_papers, get_region, tint, STACK_EDGE)
 
 
 def main():
@@ -110,7 +110,7 @@ def main():
         stack_colors.append(COLOR_OTHER)
 
     ax.stackplot(all_years, *stacks, labels=stack_labels,
-                 colors=stack_colors, alpha=0.85)
+                 colors=[tint(c, 0.12) for c in stack_colors], **STACK_EDGE)
     ax.set_xlabel("Year")
     ax.set_ylabel("Number of Papers")
     ax.set_title("Regional Distribution Over Time")

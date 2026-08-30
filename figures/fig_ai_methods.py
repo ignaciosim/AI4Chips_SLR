@@ -10,7 +10,7 @@ from matplotlib.ticker import FixedLocator
 from plot_style import (display_methods,
                         DISPLAY_YEAR_MAX,
                         apply_style, save_figure, format_axes, SINGLE_COL,
-                        COLORS, COLOR_OTHER, load_csv_papers)
+                        COLORS, COLOR_OTHER, load_csv_papers, year_axis, method_label, stack_colors, STACK_EDGE)
 
 
 def main():
@@ -45,7 +45,7 @@ def main():
     ax.set_title("AI Method Totals")
     format_axes(ax)
     ax.yaxis.set_major_locator(FixedLocator(list(y_pos)))
-    ax.set_yticklabels(methods, fontsize=7)
+    ax.set_yticklabels([method_label(m) for m in methods], fontsize=7)
     for bar, val in zip(bars, values):
         ax.text(bar.get_width() + 0.3, bar.get_y() + bar.get_height() / 2,
                 str(val), va="center", ha="left", fontsize=6.5)
@@ -72,16 +72,16 @@ def main():
                            if papers_by_year[y] > 0 else 0)
 
     stacks = [share_data[m] for m in top6] + [other_share]
-    labels = top6 + ["Other"]
+    labels = [method_label(m) for m in top6] + ["Other"]
     colors = COLORS[:6] + [COLOR_OTHER]
 
-    ax.stackplot(all_years, *stacks, labels=labels, colors=colors, alpha=0.85)
+    ax.stackplot(all_years, *stacks, labels=labels,
+                 colors=stack_colors(colors), **STACK_EDGE)
     ax.set_xlabel("Year")
     ax.set_ylabel("Share of Papers (%)")
     ax.set_title("Top 6 Methods — Share Over Time")
     ax.legend(loc="upper left", fontsize=6, ncol=1)
-    ax.set_xticks(all_years)
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+    year_axis(ax, all_years)
     format_axes(ax)
     fig.tight_layout()
     save_figure(fig, "fig_ai_methods_trends")

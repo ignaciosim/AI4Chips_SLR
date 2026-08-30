@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
 from plot_style import (DISPLAY_YEAR_MAX,
                         apply_style, save_figure, format_axes, SINGLE_COL,
-                        COLORS, TASK_LABEL, load_csv_papers)
+                        COLORS, TASK_LABEL, load_csv_papers, year_axis)
 
 
 def main():
@@ -66,8 +66,7 @@ def main():
     ax.set_ylabel("Number of Papers")
     ax.set_title("Top 8 Tasks Over Time")
     ax.legend(loc="upper left", fontsize=5.5, ncol=1)
-    ax.set_xticks(all_years)
-    ax.set_xticklabels([str(y) for y in all_years], rotation=45, ha="right")
+    year_axis(ax, all_years)
     format_axes(ax)
     fig.tight_layout()
     save_figure(fig, "fig_chip_tasks_trends")
