@@ -332,10 +332,15 @@ pasteable into the BigQuery console without running anything. They are
 generated from the script itself, so the file cannot drift from the code:
 
 ```bash
-python3 analysis/patent_analysis.py --print-sql > analysis/patent_queries.sql
+make patent-queries          # rewrites both copies
 ```
 
-`--print-sql` needs no GCP credentials and no `google-cloud-bigquery` install.
+A second copy ships beside the patent CSVs in the dataset repository as
+`corpus/patent_queries.sql`, so a reader who lands on the outputs finds the
+criterion there too. `make patent-queries` writes both — in the published
+layout `$(DATADIR)` is a symlink into the dataset repo — so the two cannot
+drift. `--print-sql` needs no GCP credentials and no `google-cloud-bigquery`
+install.
 
 ## Figure style
 

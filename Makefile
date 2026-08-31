@@ -5,6 +5,7 @@
 #   make all DATADIR=scopus_out11     # run the Scopus pipeline end-to-end
 #   make figures DATADIR=scopus_out11 # regenerate figures only
 #   make patents DATADIR=scopus_out11 # patent-landscape companion (BigQuery)
+#   make patent-queries               # re-render patent_queries.sql (no auth)
 #   make preflight                    # sanity-check credentials + deps
 #   make clean                        # remove generated outputs (keep raw)
 #   make nuke                         # remove EVERYTHING including raw fetch
@@ -37,7 +38,7 @@ FIGURES_STAMP   := $(DATADIR)/figures/.figures.stamp
 PATENTS_CSV     := $(DATADIR)/patents_vs_publications_strict.csv
 
 .PHONY: all setup preflight fetch merge classify final shortlist figures \
-        analysis patents clean nuke help refetch
+        analysis patents patent-queries clean nuke help refetch
 
 help:
 	@echo "SLR pipeline targets:"
@@ -51,6 +52,7 @@ help:
 	@echo "  figures     (re)generate all publication figures"
 	@echo "  analysis    run the text-output analysis scripts"
 	@echo "  patents     patent-landscape companion (needs BigQuery auth)"
+	@echo "  patent-queries  re-render patent_queries.sql (no auth needed)"
 	@echo "  clean       remove generated outputs (keep raw Scopus fetch)"
 	@echo "  nuke        remove EVERYTHING (including expensive raw fetch)"
 	@echo ""
@@ -161,6 +163,15 @@ $(PATENTS_CSV): $(FINAL_JSON) analysis/patent_analysis.py
 	    $(if $(GCP_PROJECT),--project $(GCP_PROJECT),)
 
 patents: $(PATENTS_CSV)
+
+# Render the expanded BigQuery queries. No GCP auth, no network. Writes both
+# the code-repo copy and the one beside the patent CSVs in $(DATADIR) — in the
+# published layout $(DATADIR) is a symlink into the dataset repo, so this is
+# what keeps the two copies from drifting.
+patent-queries:
+	$(PY) analysis/patent_analysis.py --print-sql > analysis/patent_queries.sql
+	@cp analysis/patent_queries.sql $(DATADIR)/patent_queries.sql
+	@echo "  wrote analysis/patent_queries.sql and $(DATADIR)/patent_queries.sql"
 
 # ── End-to-end ─────────────────────────────────────────────────────────────
 # `all` runs everything except patents (which needs separate GCP auth).
