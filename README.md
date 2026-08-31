@@ -75,7 +75,9 @@ Use `make refetch` if you actually want to re-retrieve.
 
 `make patents` is the exception: it queries BigQuery and needs Google Cloud
 credentials. The patent artefacts it would produce are already in the dataset
-repository.
+repository, and the queries themselves are committed as
+`analysis/patent_queries.sql`, so the retrieval can be audited without an
+account.
 
 > **Run scripts through the Makefile, or pass `--datadir` explicitly.** Many
 > scripts under `analysis/` carry a hard-coded default data directory from the
@@ -317,6 +319,23 @@ linguistic terms, etc.). See
 | `patents_vs_publications_strict.csv`               | Per-company patent count vs. SLR journal publications (counted against the curated corpus) |
 | `patents_vs_publications.csv`                      | Loose OR-based CPC magnitude reference |
 | `case_study_patents.csv`                           | Targeted inventor probes for named shortlist papers |
+
+The retrieval criterion is a three-way conjunction: a chip-design/EDA CPC class
+(`G06F30`, `G06F17/50`, `G06F115`, `G06F119`, `G06F11/22`, `G01R31/28` — `H01L`
+deliberately excluded as too broad), **and** a machine-learning CPC class
+(`G06N`), **and** an AI-method name in the patent title. Window `20150101`
+-`20261231` over `patents-public-data.patents.publications`.
+
+The complete expanded query strings are committed as
+[`analysis/patent_queries.sql`](analysis/patent_queries.sql) — readable and
+pasteable into the BigQuery console without running anything. They are
+generated from the script itself, so the file cannot drift from the code:
+
+```bash
+python3 analysis/patent_analysis.py --print-sql > analysis/patent_queries.sql
+```
+
+`--print-sql` needs no GCP credentials and no `google-cloud-bigquery` install.
 
 ## Figure style
 

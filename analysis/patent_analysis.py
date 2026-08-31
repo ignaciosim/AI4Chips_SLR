@@ -63,6 +63,13 @@ Prerequisites:
 
 Usage:
   python3 analysis/patent_analysis.py --datadir scopus_out10
+  python3 analysis/patent_analysis.py --print-sql      # queries only, no auth
+
+`--print-sql` writes every query above, fully expanded, to stdout without
+touching BigQuery. The committed rendering of that output is
+`analysis/patent_queries.sql`; regenerate it with
+
+  python3 analysis/patent_analysis.py --print-sql > analysis/patent_queries.sql
 """
 from __future__ import annotations
 
@@ -70,12 +77,15 @@ import argparse
 import sys
 from pathlib import Path
 
-try:
-    from google.cloud import bigquery
-except ImportError:
-    sys.stderr.write("ERROR: google-cloud-bigquery not installed.\n"
-                     "  pip install google-cloud-bigquery\n")
-    sys.exit(1)
+def _bigquery():
+    """Imported lazily so that --print-sql works without the client library."""
+    try:
+        from google.cloud import bigquery
+    except ImportError:
+        sys.stderr.write("ERROR: google-cloud-bigquery not installed.\n"
+                         "  pip install google-cloud-bigquery\n")
+        sys.exit(1)
+    return bigquery
 
 
 # ── Chip-company patterns (regex over assignee_harmonized.name) ───────────
@@ -233,6 +243,58 @@ def _strict_list_sql(title_regex: str) -> str:
     """
 
 
+def _loose_sql() -> str:
+    """Loose OR-based CPC count; magnitude reference only."""
+    return f"""
+    {_build_company_cte()},
+    loose_ai_chip AS (
+      SELECT p.family_id, asg.name AS assignee_name
+      FROM `patents-public-data.patents.publications` p,
+      UNNEST(p.assignee_harmonized) asg
+      WHERE p.publication_date BETWEEN 20150101 AND 20261231
+        AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c
+                   WHERE c.code LIKE 'G06F30%' OR c.code LIKE 'G06F17/50%'
+                      OR c.code LIKE 'G06N3%'   OR c.code LIKE 'G06F115%'
+                      OR c.code LIKE 'G06F119%' OR c.code LIKE 'G06F11/22%'
+                      OR c.code LIKE 'G01R31/28%')
+    )
+    SELECT cp.name AS company,
+           COUNT(DISTINCT lac.family_id) AS loose_patent_families
+    FROM company_patterns cp
+    JOIN loose_ai_chip lac ON REGEXP_CONTAINS(lac.assignee_name, cp.pattern)
+    GROUP BY company
+    ORDER BY loose_patent_families DESC
+    """
+
+
+def _case_study_sql(cs: dict) -> str:
+    """Inventor + title + CPC probe for one shortlist paper."""
+    return f"""
+        SELECT
+          '{cs['paper']}' AS paper,
+          '{cs['doi']}' AS paper_doi,
+          p.publication_number,
+          p.family_id,
+          EXTRACT(YEAR FROM PARSE_DATE('%Y%m%d', CAST(p.publication_date AS STRING))) AS pub_year,
+          p.title_localized[SAFE_OFFSET(0)].text AS title,
+          ARRAY(SELECT x.name FROM UNNEST(p.assignee_harmonized) x) AS assignees,
+          ARRAY(SELECT x FROM UNNEST(p.inventor) x) AS inventors,
+          p.country_code
+        FROM `patents-public-data.patents.publications` p
+        WHERE p.publication_date BETWEEN {cs['years'][0]} AND {cs['years'][1]}
+          AND EXISTS(SELECT 1 FROM UNNEST(p.inventor) i
+                     WHERE REGEXP_CONTAINS(LOWER(i), r'{cs["inv_regex"]}'))
+          AND REGEXP_CONTAINS(LOWER(p.title_localized[SAFE_OFFSET(0)].text),
+                              r'{cs["title_regex"]}')
+          AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c
+                     WHERE c.code LIKE 'G06F30%' OR c.code LIKE 'G06F17/50%'
+                        OR c.code LIKE 'G06N3%'  OR c.code LIKE 'G06F115%'
+                        OR c.code LIKE 'H01L%')
+        ORDER BY p.publication_date DESC
+        LIMIT 30
+        """
+
+
 def run_strict_list(client: bigquery.Client, outdir: Path,
                     title_regex: str, out_name: str,
                     post_neg_regex: str | None = None) -> "pd.DataFrame":
@@ -329,26 +391,7 @@ def run_strict_company_count(outdir: Path, strict_df) -> "pd.DataFrame":
 
 def run_loose_company_count(client: bigquery.Client, out_path: Path) -> "pd.DataFrame":
     """Loose OR-based count, kept as magnitude reference only."""
-    sql = f"""
-    {_build_company_cte()},
-    loose_ai_chip AS (
-      SELECT p.family_id, asg.name AS assignee_name
-      FROM `patents-public-data.patents.publications` p,
-      UNNEST(p.assignee_harmonized) asg
-      WHERE p.publication_date BETWEEN 20150101 AND 20261231
-        AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c
-                   WHERE c.code LIKE 'G06F30%' OR c.code LIKE 'G06F17/50%'
-                      OR c.code LIKE 'G06N3%'   OR c.code LIKE 'G06F115%'
-                      OR c.code LIKE 'G06F119%' OR c.code LIKE 'G06F11/22%'
-                      OR c.code LIKE 'G01R31/28%')
-    )
-    SELECT cp.name AS company,
-           COUNT(DISTINCT lac.family_id) AS loose_patent_families
-    FROM company_patterns cp
-    JOIN loose_ai_chip lac ON REGEXP_CONTAINS(lac.assignee_name, cp.pattern)
-    GROUP BY company
-    ORDER BY loose_patent_families DESC
-    """
+    sql = _loose_sql()
     print("[loose]  Counting OR-based AI-or-chip patent families per company...")
     df = client.query(sql).to_dataframe()
     df.to_csv(out_path, index=False)
@@ -362,30 +405,7 @@ def run_case_studies(client: bigquery.Client, out_path: Path) -> None:
     all_rows = []
     for cs in CASE_STUDIES:
         print(f"[case]  Probing {cs['paper']}...")
-        sql = f"""
-        SELECT
-          '{cs['paper']}' AS paper,
-          '{cs['doi']}' AS paper_doi,
-          p.publication_number,
-          p.family_id,
-          EXTRACT(YEAR FROM PARSE_DATE('%Y%m%d', CAST(p.publication_date AS STRING))) AS pub_year,
-          p.title_localized[SAFE_OFFSET(0)].text AS title,
-          ARRAY(SELECT x.name FROM UNNEST(p.assignee_harmonized) x) AS assignees,
-          ARRAY(SELECT x FROM UNNEST(p.inventor) x) AS inventors,
-          p.country_code
-        FROM `patents-public-data.patents.publications` p
-        WHERE p.publication_date BETWEEN {cs['years'][0]} AND {cs['years'][1]}
-          AND EXISTS(SELECT 1 FROM UNNEST(p.inventor) i
-                     WHERE REGEXP_CONTAINS(LOWER(i), r'{cs["inv_regex"]}'))
-          AND REGEXP_CONTAINS(LOWER(p.title_localized[SAFE_OFFSET(0)].text),
-                              r'{cs["title_regex"]}')
-          AND EXISTS(SELECT 1 FROM UNNEST(p.cpc) c
-                     WHERE c.code LIKE 'G06F30%' OR c.code LIKE 'G06F17/50%'
-                        OR c.code LIKE 'G06N3%'  OR c.code LIKE 'G06F115%'
-                        OR c.code LIKE 'H01L%')
-        ORDER BY p.publication_date DESC
-        LIMIT 30
-        """
+        sql = _case_study_sql(cs)
         df = client.query(sql).to_dataframe()
         if not df.empty:
             df["assignees"] = df["assignees"].apply(
@@ -397,6 +417,52 @@ def run_case_studies(client: bigquery.Client, out_path: Path) -> None:
     combined = pd.concat(all_rows, ignore_index=True) if all_rows else pd.DataFrame()
     combined.to_csv(out_path, index=False)
     print(f"  wrote {out_path}  ({len(combined)} total rows)")
+
+
+def print_all_sql() -> None:
+    """Print every query this script issues, fully expanded.
+
+    Needs no BigQuery client and no GCP credentials — the point is that the
+    exact strings sent to `patents-public-data.patents.publications` can be
+    read, audited, and pasted into the BigQuery console independently.
+    """
+    blocks = [
+        ("patents_strict_list.csv",
+         "Strict AI-for-Chips list: chip/EDA CPC AND G06N CPC AND "
+         "AI-method name in the title.",
+         _strict_list_sql(TITLE_METHOD_REGEX)),
+        ("patents_strict_list_chipkw_sensitivity.csv",
+         "Sensitivity cut: same CPC conjunction, chip-domain keyword in the "
+         "title instead of an AI-method name. Rows whose title also matches\n"
+         "-- r'" + TITLE_CHIP_NEG_REGEX + "'\n"
+         "-- are dropped in pandas after the query returns, not in SQL.",
+         _strict_list_sql(TITLE_CHIP_POS_REGEX)),
+        ("patents_vs_publications.csv",
+         "Loose OR-based CPC count. Magnitude reference only; not reported "
+         "as a headline number.",
+         _loose_sql()),
+    ] + [
+        ("case_study_patents.csv",
+         f"Case-study probe for {cs['paper']} (DOI {cs['doi']}).",
+         _case_study_sql(cs))
+        for cs in CASE_STUDIES
+    ]
+
+    print("-- Generated by: python3 analysis/patent_analysis.py --print-sql")
+    print("-- Source of truth: analysis/patent_analysis.py "
+          "(github.com/ignaciosim/AI4Chips_SLR)")
+    print("-- Dataset: patents-public-data.patents.publications (BigQuery, "
+          "public, free to query)")
+    print("-- Publication-date window: 20150101-20261231")
+    for out_name, note, sql in blocks:
+        print()
+        print("-- " + "=" * 72)
+        print(f"-- {out_name}")
+        for line in note.split("\n"):
+            print(f"-- {line}" if not line.startswith("--") else line)
+        print("-- " + "=" * 72)
+        print(sql.strip())
+        print(";")
 
 
 def main() -> None:
@@ -411,10 +477,18 @@ def main() -> None:
                     help="Skip the chip-keyword sensitivity cut")
     ap.add_argument("--skip-cases", action="store_true",
                     help="Skip the case-study probes")
+    ap.add_argument("--print-sql", action="store_true",
+                    help="Print the fully expanded queries and exit "
+                         "(no BigQuery access needed)")
     args = ap.parse_args()
+
+    if args.print_sql:
+        print_all_sql()
+        return
 
     outdir = Path(args.datadir)
     outdir.mkdir(parents=True, exist_ok=True)
+    bigquery = _bigquery()
     client = (bigquery.Client(project=args.project) if args.project
               else bigquery.Client())
     print(f"BigQuery project: {client.project}")
