@@ -7,8 +7,9 @@ Two panels over the three largest national contributors:
       indistinguishable; South Korea is the outlier, with fabrication at
       roughly twice the corpus rate and no transit work at all.
 
-  (b) AI method mix, CONDITIONED on the paper naming a specific method family
-      in its title.
+  (b) AI method mix as a heatmap, CONDITIONED on the paper naming a specific
+      method family in its title. Cells are annotated, and the colour ranks
+      them; there is no colourbar because the numbers are already on the page.
 
 WHY PANEL (b) IS CONDITIONAL. Method tags are derived from titles, so a raw
 method share also measures how often a country's titles name their method at
@@ -23,8 +24,17 @@ exact except Bayesian at p = 0.05, none surviving correction across 8 tests).
 
 Country attribution is any-author: a paper counts for every country appearing
 in its affiliations, matching the convention used in the other geography
-figures. Only 2 of 660 papers are US-China co-authored, so the two columns are
-effectively disjoint samples.
+figures. Only 2 of 660 papers are US-China co-authored, so those two columns
+are effectively disjoint samples.
+
+COUNTRY SET. The four largest contributors, plus the whole corpus as a
+reference column. The cut is at four because conditioning shrinks the
+denominator and the next countries do not survive it: Germany reaches 18
+method-naming papers and Taiwan 13, where a single paper moves a cell by 5-8
+percentage points. Hong Kong is reported separately from China, as Scopus
+codes it; folding the two together would make China the largest cumulative
+contributor rather than the United States, so the convention is worth stating
+wherever this figure appears.
 
 Usage:
     python3 figures/fig_country_profile.py --datadir scopus_out12
@@ -38,6 +48,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
 
 import plot_style
 from plot_style import (apply_style, save_figure, format_axes, merge_csv_json,
@@ -60,8 +71,8 @@ SPECIFIC = ["deep_learning", "bayesian_probabilistic", "graph_neural_networks",
             "evolutionary_optimization", "generative_adversarial",
             "transfer_learning"]
 
-N_COUNTRIES = 3
-MARKERS = ["o", "s", "^"]
+N_COUNTRIES = 4
+CORPUS_LABEL = "All papers"
 
 
 def load(year_max=None):
@@ -110,46 +121,43 @@ def panel_stages(ax, papers, countries):
 
 
 def panel_methods(ax, papers, countries):
-    """Dot plot: method mix among papers that name a specific family."""
+    """Heatmap: method mix among papers that name a specific family."""
     spec = set(SPECIFIC)
+    cols = list(countries) + [CORPUS_LABEL]
     sel = {c: [p for p in papers if c in p["countries"] and p["methods"] & spec]
            for c in countries}
-    base = [p for p in papers if p["methods"] & spec]
+    sel[CORPUS_LABEL] = [p for p in papers if p["methods"] & spec]
 
-    order = sorted(SPECIFIC,
-                   key=lambda m: sum(1 for p in base if m in p["methods"]))
-    y = np.arange(len(order))
+    order = sorted(SPECIFIC, reverse=True,
+                   key=lambda m: sum(1 for p in sel[CORPUS_LABEL]
+                                     if m in p["methods"]))
+    grid = np.array([[100 * sum(1 for p in sel[c] if m in p["methods"])
+                      / max(len(sel[c]), 1) for c in cols] for m in order])
 
-    # connector spanning the countries, so coincident points read as coincident
-    for i, m in enumerate(order):
-        vals = [100 * sum(1 for p in sel[c] if m in p["methods"])
-                / max(len(sel[c]), 1) for c in countries]
-        ax.plot([min(vals), max(vals)], [i, i], color="#DDDDDD",
-                linewidth=2.4, solid_capstyle="round", zorder=1)
+    cmap = LinearSegmentedColormap.from_list("wb", ["#FFFFFF", COLORS[0]])
+    im = ax.imshow(grid, aspect="auto", cmap=cmap, vmin=0, vmax=grid.max())
 
-    for j, c in enumerate(countries):
-        vals = [100 * sum(1 for p in sel[c] if m in p["methods"])
-                / max(len(sel[c]), 1) for m in order]
-        ax.plot(vals, y, MARKERS[j], color=COLORS[j], markersize=4.6,
-                linestyle="none", zorder=3,
-                label=f"{c} (n = {len(sel[c])})")
+    for i in range(grid.shape[0]):
+        for j in range(grid.shape[1]):
+            v = grid[i, j]
+            ax.text(j, i, f"{v:.0f}", ha="center", va="center", fontsize=7,
+                    color="white" if v > 0.62 * grid.max() else INK_MUTED)
 
-    corpus = [100 * sum(1 for p in base if m in p["methods"]) / len(base)
-              for m in order]
-    ax.plot(corpus, y, "|", color=COLOR_NEUTRAL, markersize=9,
-            markeredgewidth=1.1, zorder=2, label=f"All papers (n = {len(base)})")
+    # the reference column is context, not a country: rule it off
+    ax.axvline(len(countries) - 0.5, color="white", linewidth=2.4)
 
-    ax.set_yticks(y)
+    ax.set_xticks(range(len(cols)))
+    ax.set_xticklabels([f"{c}\n(n = {len(sel[c])})" for c in cols],
+                       fontsize=6.8, linespacing=1.4)
+    ax.set_yticks(range(len(order)))
     ax.set_yticklabels([method_label(m, tight=True) for m in order], fontsize=7.5)
-    ax.set_ylim(-0.7, len(order) - 0.3)
-    ax.set_xlabel("Share of method-naming papers (%)", fontsize=8)
+    ax.tick_params(length=0)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
     ax.set_title("(b) AI method family")
-    format_axes(ax)
-    ax.set_yticks(y)
-    ax.set_yticklabels([method_label(m, tight=True) for m in order], fontsize=7.5)
-    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.18), ncol=2,
-              frameon=False, fontsize=7, handlelength=1.0, numpoints=1,
-              columnspacing=1.2)
+    ax.text(0.0, -0.30, "Share of each column's method-naming papers (%)",
+            transform=ax.transAxes, fontsize=7.5, color=INK_MUTED, va="top")
+    return im
 
 
 def report(papers, countries):
@@ -187,8 +195,8 @@ def main():
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(DOUBLE_COL, 3.5))
     panel_stages(ax1, papers, countries)
     panel_methods(ax2, papers, countries)
-    fig.subplots_adjust(left=0.155, right=0.985, top=0.90,
-                        wspace=0.42, bottom=0.30)
+    fig.subplots_adjust(left=0.155, right=0.985, top=0.88,
+                        wspace=0.40, bottom=0.28)
 
     save_figure(fig, "fig_country_profile")
     report(papers, countries)
