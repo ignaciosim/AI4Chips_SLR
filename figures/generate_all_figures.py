@@ -28,7 +28,6 @@ FIGURE_MODULES = [
     ("fig_geo_contrast",     "fig_geo_share_contrast.pdf, fig_geo_specialization.pdf, fig_geo_trends_contrast.pdf, fig_geo_trends_overlay.pdf, fig_geo_trends_overlay_counts.pdf, fig_geo_trends_facets.pdf"),
     ("fig_citation_impact",  "fig_citation_boxplot.pdf, fig_citation_methods.pdf, fig_citation_tasks.pdf"),
     ("fig_citation_venues",  "fig_citation_venues.pdf"),
-    ("fig_method_country",   "fig_method_country_heatmap.pdf"),
     ("fig_country_profile",  "fig_country_profile.pdf"),
     ("fig_soft_ald",         "fig_emerging_topics.pdf"),
     ("fig_task_combinations","fig_task_combinations.pdf"),

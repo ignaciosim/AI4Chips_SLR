@@ -10,7 +10,7 @@ Cells are column-normalised — the share of that stage's papers whose title
 names the method — because the stages differ in size by an order of magnitude
 (design ~360 papers vs transit ~26) and raw counts would simply restate the
 stage distribution. Each column header carries its own N so magnitude is not
-lost. This mirrors the treatment in `fig_method_country.py`.
+lost. This mirrors the treatment in `fig_country_profile.py`.
 
 Note the measure is title-derived, consistent with the review's screening:
 it is the share of papers whose TITLE names the method, a conservative floor
