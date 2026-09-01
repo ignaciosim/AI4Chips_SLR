@@ -42,12 +42,12 @@ LABEL = {"design": "Design", "fabrication": "Fabrication",
 MIN_METHOD_COUNT = 5      # drop long-tail methods that would be all-white
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--datadir", default=None)
-    args = ap.parse_args()
-    if args.datadir:
-        plot_style.set_data_dir(args.datadir)
+def main(datadir=None):
+    # No argv parsing here: generate_all_figures.py imports this module and
+    # calls main() directly, so anything read from sys.argv would see the
+    # runner's own flags (--only, ...) and abort the whole run.
+    if datadir:
+        plot_style.set_data_dir(datadir)
 
     papers = load_csv_papers(year_max=None)  # aggregate: use the whole corpus
     stage_n = Counter()
@@ -110,4 +110,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--datadir", default=None)
+    main(_ap.parse_args().datadir)

@@ -51,12 +51,12 @@ MIN_STAGE_N = 25           # below this, mark the column as small-sample
 MIN_METHOD_TOTAL = 8       # drop long-tail families
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--datadir", default=None)
-    args = ap.parse_args()
-    if args.datadir:
-        plot_style.set_data_dir(args.datadir)
+def main(datadir=None):
+    # No argv parsing here: generate_all_figures.py imports this module and
+    # calls main() directly, so anything read from sys.argv would see the
+    # runner's own flags (--only, ...) and abort the whole run.
+    if datadir:
+        plot_style.set_data_dir(datadir)
 
     # Aggregate, not a time series: year_max=None keeps the whole curated
     # corpus including the partially-indexed final year. Period labels are
@@ -154,4 +154,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _ap = argparse.ArgumentParser()
+    _ap.add_argument("--datadir", default=None)
+    main(_ap.parse_args().datadir)
