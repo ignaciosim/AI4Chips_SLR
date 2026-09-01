@@ -92,7 +92,7 @@ def main():
             transform=ax.transAxes, fontsize=6.3, color="#666666")
 
     ax.set_xlabel("Year")
-    ax.set_ylabel(f"Papers per year, indexed ({years[0]} = 100)")
+    ax.set_ylabel("Growth index")
     ax.set_title("Growth Relative to 2015", fontsize=9.5)
     ax.set_xticks(years[::2])
     format_axes(ax)
