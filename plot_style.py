@@ -172,6 +172,20 @@ def tint_to_lightness(color, target=BAR_FACE_L, max_amount=BAR_MAX_TINT):
 
 # ── Style setup ───────────────────────────────────────────────────
 
+# Text drawn ON a filled shape (a stacked band, a heatmap cell) has to switch
+# with the fill, or it disappears into the darker hues. The cut is at OKLab
+# L = 0.70 rather than the usual 0.5: at 9pt these labels are small, so a hue
+# has to be genuinely light before dark ink beats white on it. Measured on the
+# stack palette, blue (0.57), vermillion (0.65) and green (0.65) take white;
+# orange (0.77) and sky (0.76) take ink.
+LABEL_ON_FILL_L = 0.70
+
+
+def text_on(color, threshold=LABEL_ON_FILL_L):
+    """Readable text colour for a label drawn on top of `color`."""
+    return "#FFFFFF" if _oklab_l(mcolors.to_rgb(color)) < threshold else INK
+
+
 def stack_colors(colors, amount=0.12):
     """Slightly lift stacked-area fills off full saturation.
 

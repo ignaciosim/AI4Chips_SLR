@@ -53,7 +53,8 @@ from matplotlib.colors import LinearSegmentedColormap
 import plot_style
 from plot_style import (apply_style, save_figure, format_axes, merge_csv_json,
                         display_methods, method_label, DOUBLE_COL, COLORS,
-                        COLOR_NEUTRAL, INK_MUTED, stack_colors, STACK_EDGE)
+                        COLOR_NEUTRAL, INK_MUTED, stack_colors, STACK_EDGE,
+                        text_on)
 
 # Lifecycle order, earliest stage first. disposal is empty in this corpus and
 # is dropped from the panel rather than drawn as a zero-width band.
@@ -104,7 +105,7 @@ def panel_stages(ax, papers, countries):
         for yi, (v, l) in zip(y, zip(vals, left)):
             if v >= 7:                      # only label bands wide enough to read
                 ax.text(l + v / 2, yi, f"{v:.0f}", ha="center", va="center",
-                        fontsize=6.5, color=INK_MUTED)
+                        fontsize=6.5, color=text_on(color))
         left += vals
 
     ax.set_yticks(y)
@@ -141,7 +142,7 @@ def panel_methods(ax, papers, countries):
         for j in range(grid.shape[1]):
             v = grid[i, j]
             ax.text(j, i, f"{v:.0f}", ha="center", va="center", fontsize=7,
-                    color="white" if v > 0.62 * grid.max() else INK_MUTED)
+                    color=text_on(cmap(v / grid.max())))
 
     # the reference column is context, not a country: rule it off
     ax.axvline(len(countries) - 0.5, color="white", linewidth=2.4)
