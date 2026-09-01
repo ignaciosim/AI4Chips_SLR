@@ -39,7 +39,7 @@ plot_style.py                ← shared plotting rcParams, palette, and data loa
     │       │       stage_shortlists.csv
     │       │
     │       ├── figures/generate_all_figures.py        ← step 5b: publication figures
-    │       │           │                                  (17-module master runner)
+    │       │           │                                  (24-module master runner)
     │       │           ▼
     │       │       figures/{manuscript,misc}/fig_*.{pdf,png}
     │       │
@@ -64,7 +64,7 @@ git clone https://github.com/ignaciosim/AI4Chips_SLR_data.git
 cd AI4Chips_SLR
 ln -s ../AI4Chips_SLR_data/corpus corpus
 
-make figures      # 23 figure scripts -> corpus/figures/*.png
+make figures      # 24 figure scripts -> corpus/figures/{manuscript,misc}/
 make analysis     # text analyses to stdout
 ```
 

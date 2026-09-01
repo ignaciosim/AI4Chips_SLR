@@ -288,6 +288,7 @@ MANUSCRIPT_FIGURES = {
     "fig_geo_periods":         "Comparison of national contribution (P1 vs P2)",
     "fig_geo_share_contrast":  "National contribution in AI-for-Chips and all chip research",
     "fig_geo_specialization":  "National specialization: AI-for-Chips share \u00f7 field share",
+    "fig_country_profile":     "Leading countries: lifecycle stage and method mix",
 }
 
 MANUSCRIPT_SUBDIR = "manuscript"
